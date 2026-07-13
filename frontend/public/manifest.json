@@ -1,0 +1,28 @@
+{
+  "name": "ViTale — Hành trình Văn hoá Việt",
+  "short_name": "ViTale",
+  "description": "Khám phá văn hoá Hà Nội qua bộ sưu tập búp bê dân tộc và nhân vật 3D AI",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0b0f",
+  "theme_color": "#0a0b0f",
+  "orientation": "portrait",
+  "categories": ["travel", "education", "lifestyle"],
+  "lang": "vi",
+  "icons": [
+    { "src": "/icons/icon-72.png",   "sizes": "72x72",   "type": "image/png" },
+    { "src": "/icons/icon-96.png",   "sizes": "96x96",   "type": "image/png" },
+    { "src": "/icons/icon-128.png",  "sizes": "128x128", "type": "image/png" },
+    { "src": "/icons/icon-144.png",  "sizes": "144x144", "type": "image/png" },
+    { "src": "/icons/icon-192.png",  "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png",  "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "/screenshots/home.png", "sizes": "390x844", "type": "image/png", "form_factor": "narrow" }
+  ],
+  "shortcuts": [
+    { "name": "Khám phá",  "url": "/explore",  "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] },
+    { "name": "AI Chat",   "url": "/chat",     "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] },
+    { "name": "Hộ chiếu", "url": "/passport", "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96" }] }
+  ]
+}

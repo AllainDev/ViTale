@@ -1,0 +1,115 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════
+   CANVAS.TSX — Custom CSS utilities not available in Tailwind
+   ══════════════════════════════════════════════════════════════════ */
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes stamp-pop {
+  0%   { opacity: 0; transform: scale(0.6) rotate(-4deg); }
+  70%  { transform: scale(1.06) rotate(1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes xp-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(201,167,109,0.3); }
+  50%       { box-shadow: 0 0 24px rgba(201,167,109,0.7); }
+}
+
+.animate-fadeIn { animation: fadeIn 0.35s ease-out both; }
+.spinner { width:2rem; height:2rem; border:2px solid #e5e7eb; border-top-color:#0f3a2c; border-radius:50%; animation:spin 0.8s linear infinite; }
+.sync-dot.pulse { animation: pulse-dot 1.5s ease-in-out infinite; }
+.stamp-entrance { animation: stamp-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+
+/* Texture background for Canvas content area */
+.texture-bg {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Sync Indicator (used by SyncStatusIndicator.tsx) */
+.sync-indicator {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.3rem 0.8rem; border-radius: 9999px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.sync-indicator.online  { background: rgba(45,212,167,0.1); color: #2dd4a7; border: 1px solid rgba(45,212,167,0.2); }
+.sync-indicator.offline { background: rgba(251,146,60,0.1);  color: #fb923c; border: 1px solid rgba(251,146,60,0.2); }
+.sync-indicator.syncing { background: rgba(139,92,246,0.1);  color: #8b5cf6; border: 1px solid rgba(139,92,246,0.2); }
+.sync-dot { width:7px; height:7px; border-radius:50%; background:currentColor; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #f5f3ef; }
+::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+
+/* ══════════════════════════════════════════════════════════════════
+   DARK THEME — used by /explore /chat /passport (old pages)
+   These are scoped inside @layer base so Tailwind utilities win
+   ══════════════════════════════════════════════════════════════════ */
+@layer base {
+  :root {
+    --bg-deep:          #0a0b0f;
+    --bg-surface:       #111218;
+    --bg-card:          #16181f;
+    --bg-card-hover:    #1c1f28;
+    --bg-glass:         rgba(22,24,31,0.85);
+    --brand-gold:       #c9a76d;
+    --brand-gold-light: #e4c98a;
+    --brand-gold-dim:   rgba(201,167,109,0.15);
+    --brand-teal:       #2dd4a7;
+    --brand-teal-dim:   rgba(45,212,167,0.12);
+    --brand-purple:     #8b5cf6;
+    --text-primary:     #f0ece4;
+    --text-secondary:   #9a9489;
+    --text-muted:       #5a574f;
+    --text-on-gold:     #0a0b0f;
+    --border:           rgba(255,255,255,0.07);
+    --border-gold:      rgba(201,167,109,0.3);
+    --border-active:    rgba(201,167,109,0.6);
+    --shadow-sm:        0 2px 8px rgba(0,0,0,0.4);
+    --shadow-md:        0 8px 32px rgba(0,0,0,0.5);
+    --shadow-gold:      0 0 30px rgba(201,167,109,0.2);
+    --radius-sm:6px; --radius-md:12px; --radius-lg:20px; --radius-full:9999px;
+    --transition:       all 0.2s cubic-bezier(0.4,0,0.2,1);
+    --font-body:        var(--font-inter), system-ui, sans-serif;
+    --font-display:     var(--font-playfair), Georgia, serif;
+    --nav-height:       64px;
+    --max-width:        1200px;
+  }
+
+  /* Scoped inside @layer base — Tailwind utilities ALWAYS override these */
+  html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased; }
+  body { margin:0; padding:0; font-family:var(--font-body); background:#f5f3ef; color:#1c1917; min-height:100dvh; overflow-x:hidden; }
+
+  /* Old dark-page component classes — only affect old pages that use them */
+  .navbar { position:fixed; top:0; left:0; right:0; height:var(--nav-height); z-index:1000; background:rgba(10,11,15,0.9); backdrop-filter:blur(20px); border-bottom:1px solid var(--border); display:flex; align-items:center; }
+  .navbar-inner { max-width:var(--max-width); margin:0 auto; padding:0 1.5rem; width:100%; display:flex; align-items:center; justify-content:space-between; }
+  .navbar-logo { font-family:var(--font-display); font-size:1.5rem; font-weight:700; background:linear-gradient(135deg,var(--brand-gold),var(--brand-gold-light)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+  .navbar-link { padding:0.5rem 1rem; border-radius:var(--radius-md); font-size:0.9rem; font-weight:500; color:var(--text-secondary); cursor:pointer; }
+  .navbar-link:hover { color:var(--text-primary); background:rgba(255,255,255,0.05); }
+  .navbar-link.active { color:var(--brand-gold); }
+  .page-wrapper { padding-top:var(--nav-height); min-height:100dvh; }
+  .container { max-width:var(--max-width); margin:0 auto; padding:0 1.5rem; }
+  .card { background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-lg); padding:1.5rem; }
+  .card:hover { background:var(--bg-card-hover); border-color:var(--border-gold); box-shadow:var(--shadow-gold); transform:translateY(-2px); }
+  .btn { display:inline-flex; align-items:center; gap:0.5rem; padding:0.75rem 1.75rem; border-radius:var(--radius-full); font-size:0.95rem; font-weight:600; border:none; cursor:pointer; white-space:nowrap; }
+  .btn-primary { background:linear-gradient(135deg,var(--brand-gold),var(--brand-gold-light)); color:var(--text-on-gold); }
+  .btn-outline { background:transparent; color:var(--brand-gold); border:1px solid var(--border-gold); }
+  .input { width:100%; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:var(--radius-md); padding:0.85rem 1rem; font-size:0.95rem; color:var(--text-primary); outline:none; }
+  .badge { display:inline-flex; align-items:center; gap:0.3rem; padding:0.2rem 0.7rem; border-radius:var(--radius-full); font-size:0.75rem; font-weight:600; }
+  .badge-gold { background:var(--brand-gold-dim); color:var(--brand-gold); border:1px solid var(--border-gold); }
+  .badge-teal { background:var(--brand-teal-dim); color:var(--brand-teal); }
+  .chat-bubble { max-width:75%; padding:0.85rem 1.1rem; border-radius:var(--radius-lg); font-size:0.9rem; }
+  .chat-bubble.user { background:var(--brand-gold-dim); border:1px solid var(--border-gold); margin-left:auto; }
+  .chat-bubble.assistant { background:var(--bg-card); border:1px solid var(--border); color:var(--text-primary); }
+}

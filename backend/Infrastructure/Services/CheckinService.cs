@@ -47,11 +47,14 @@ public class CheckinService : ICheckinService
         if (longitude < -180 || longitude > 180)
             return Error("Invalid longitude — must be between -180 and 180.", "INVALID_COORDS");
 
-        // ── 2. Find active checkpoint within effective radius ─────────
-        var effectiveRadius = accuracyMeters.HasValue
-            ? (int)Math.Min(MaxCheckinRadiusMeters, 50 + accuracyMeters.Value)
-            : MaxCheckinRadiusMeters;
-
+        // ── 2. Find active checkpoint within its own effective radius ─────────
+        // Each checkpoint has its own configured Radius (range 80–500m). The effective
+        // radius used for matching the GPS fix is checkpoint.Radius plus an accuracy
+        // buffer: when the device reports a less accurate GPS fix, we forgive more
+        // distance. When the fix is accurate, we trust the configured Radius as-is.
+        // This replaces the previous logic that capped every check at MaxCheckinRadiusMeters
+        // and shrank the radius when accuracy was high — which caused valid nearby check-ins
+        // (e.g. "Nhà của bạn" at 100m) to fail.
         var activeCheckpointsQuery = _db.Checkpoints.AsNoTracking().Where(c => c.IsActive);
         if (checkpointId.HasValue)
         {
@@ -60,18 +63,31 @@ public class CheckinService : ICheckinService
         
         var activeCheckpoints = await activeCheckpointsQuery.ToListAsync(ct);
 
-        var nearest = activeCheckpoints
+        var candidates = activeCheckpoints
             .Select(c => new
             {
                 Checkpoint = c,
-                DistanceMeters = _geo.CalculateDistanceMeters(latitude, longitude, c.Latitude, c.Longitude)
+                DistanceMeters = _geo.CalculateDistanceMeters(latitude, longitude, c.Latitude, c.Longitude),
+                // Per-checkpoint effective radius: own Radius (+ accuracy buffer if reported).
+                EffectiveRadius = accuracyMeters.HasValue
+                    ? c.Radius + (int)Math.Ceiling(accuracyMeters.Value)
+                    : c.Radius
             })
-            .Where(x => x.DistanceMeters <= effectiveRadius)
+            .ToList();
+
+        var nearest = candidates
+            .Where(x => x.DistanceMeters <= x.EffectiveRadius)
             .OrderBy(x => x.DistanceMeters)
             .FirstOrDefault();
 
         if (nearest == null)
-            return Error($"No checkpoints within {effectiveRadius} metres of your location.", "OUT_OF_RANGE");
+        {
+            var closest = candidates.OrderBy(x => x.DistanceMeters).FirstOrDefault();
+            var msg = closest != null
+                ? $"No checkpoints within reach of your location. You are about {Math.Round(closest.DistanceMeters)}m from the nearest checkpoint ({closest.Checkpoint.Name}), but its radius is {closest.Checkpoint.Radius}m."
+                : "No checkpoints within reach of your location.";
+            return Error(msg, "OUT_OF_RANGE");
+        }
 
         var checkpoint = nearest.Checkpoint;
 

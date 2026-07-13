@@ -48,6 +48,15 @@ public class Checkpoint
         if (storyAssetUrl != null) StoryAssetUrl = storyAssetUrl;
         if (isActive.HasValue)   IsActive      = isActive.Value;
     }
-}
 
+    /// <summary>
+    /// Updates the GPS check-in radius. Bounded to 10–1000m to match Create().
+    /// </summary>
+    public void UpdateRadius(int newRadius)
+    {
+        if (newRadius < 10 || newRadius > 1000)
+            throw new ArgumentOutOfRangeException(nameof(newRadius), "Radius must be between 10 and 1000 metres.");
+        Radius = newRadius;
+    }
+}
 

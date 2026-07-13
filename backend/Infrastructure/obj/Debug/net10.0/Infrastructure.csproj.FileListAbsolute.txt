@@ -15,3 +15,4 @@ C:\Users\Admin\Desktop\ViTale\backend\Infrastructure\obj\Debug\net10.0\Infrastru
 C:\Users\Admin\Desktop\ViTale\backend\Infrastructure\obj\Debug\net10.0\refint\Infrastructure.dll
 C:\Users\Admin\Desktop\ViTale\backend\Infrastructure\obj\Debug\net10.0\Infrastructure.pdb
 C:\Users\Admin\Desktop\ViTale\backend\Infrastructure\obj\Debug\net10.0\ref\Infrastructure.dll
+C:\Users\Admin\Desktop\ViTale\backend\Infrastructure\obj\Debug\net10.0\Infrastructure.sourcelink.json

@@ -139,10 +139,32 @@ public class GamificationController : BaseController
     [HttpPost("gamification/create-test-checkpoint")]
     public async Task<IActionResult> CreateTestCheckpoint(CancellationToken ct)
     {
-        var cp = Domain.Entities.Checkpoint.Create("Nhà của bạn", 21.022320622035508m, 105.52057995771676m, 100, "Hà Nội", null, null);
+        // 500m gives the "Nhà của bạn" checkpoint a generous GPS tolerance so the user can
+        // check-in from anywhere within a typical residential block. Combined with the
+        // per-checkpoint effectiveRadius logic in CheckinService, the actual check-in
+        // radius becomes 500m + GPS-accuracy-buffer.
+        // If a "Nhà của bạn" checkpoint already exists from a previous run, update its
+        // radius instead of creating duplicates.
+        const int homeRadius = 500;
+        const decimal homeLat = 21.022320622035508m;
+        const decimal homeLng = 105.52057995771676m;
+        const string homeName = "Nhà của bạn";
+
+        var existing = await _db.Checkpoints
+            .FirstOrDefaultAsync(c => c.Name == homeName, ct);
+
+        if (existing != null)
+        {
+            existing.UpdateRadius(homeRadius);
+            await _db.SaveChangesAsync(ct);
+            return Ok(new { success = true, checkpointId = existing.Id, updated = true });
+        }
+
+        var cp = Domain.Entities.Checkpoint.Create(
+            homeName, homeLat, homeLng, homeRadius, "Hà Nội", null, null);
         _db.Checkpoints.Add(cp);
         await _db.SaveChangesAsync(ct);
-        return Ok(new { success = true, checkpointId = cp.Id });
+        return Ok(new { success = true, checkpointId = cp.Id, created = true });
     }
 
     // ── GET /api/v1/gamification/status ──────────────────────────────────────

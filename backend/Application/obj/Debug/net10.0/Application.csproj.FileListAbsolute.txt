@@ -13,3 +13,4 @@ C:\Users\Admin\Desktop\ViTale\backend\Application\obj\Debug\net10.0\Application.
 C:\Users\Admin\Desktop\ViTale\backend\Application\obj\Debug\net10.0\refint\Application.dll
 C:\Users\Admin\Desktop\ViTale\backend\Application\obj\Debug\net10.0\Application.pdb
 C:\Users\Admin\Desktop\ViTale\backend\Application\obj\Debug\net10.0\ref\Application.dll
+C:\Users\Admin\Desktop\ViTale\backend\Application\obj\Debug\net10.0\Application.sourcelink.json
