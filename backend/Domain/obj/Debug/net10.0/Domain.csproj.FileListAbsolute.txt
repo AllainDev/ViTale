@@ -1,0 +1,11 @@
+C:\Users\Admin\Desktop\ViTale\backend\Domain\bin\Debug\net10.0\Domain.deps.json
+C:\Users\Admin\Desktop\ViTale\backend\Domain\bin\Debug\net10.0\Domain.dll
+C:\Users\Admin\Desktop\ViTale\backend\Domain\bin\Debug\net10.0\Domain.pdb
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\Domain.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\Domain.AssemblyInfo.cs
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\Domain.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\Domain.dll
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\refint\Domain.dll
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\Domain.pdb
+C:\Users\Admin\Desktop\ViTale\backend\Domain\obj\Debug\net10.0\ref\Domain.dll

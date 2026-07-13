@@ -1,0 +1,485 @@
+using Microsoft.EntityFrameworkCore;
+using Domain.Entities;
+using Domain.Enums;
+using System.Text.Json;
+
+namespace Infrastructure.Persistence;
+
+public class ApplicationDbContext : DbContext
+{
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+
+    public DbSet<Traveler> Travelers => Set<Traveler>();
+    public DbSet<PassportAccount> PassportAccounts => Set<PassportAccount>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<Character> Characters => Set<Character>();
+    public DbSet<Checkpoint> Checkpoints => Set<Checkpoint>();
+    public DbSet<StoryChapter> StoryChapters => Set<StoryChapter>();
+    public DbSet<CheckinRecord> CheckinRecords => Set<CheckinRecord>();
+    public DbSet<Stamp> Stamps => Set<Stamp>();
+    public DbSet<Badge> Badges => Set<Badge>();
+    public DbSet<TravelerBadge> TravelerBadges => Set<TravelerBadge>();
+    public DbSet<Partner> Partners => Set<Partner>();
+    public DbSet<Voucher> Vouchers => Set<Voucher>();
+    public DbSet<TravelerVoucher> TravelerVouchers => Set<TravelerVoucher>();
+    public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<Translation> Translations => Set<Translation>();
+    public DbSet<CollectionItem> CollectionItems => Set<CollectionItem>();
+    public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
+    public DbSet<DollToken> DollTokens => Set<DollToken>();
+    public DbSet<UserGamificationProfile> UserGamificationProfiles => Set<UserGamificationProfile>();
+    public DbSet<XpTransaction> XpTransactions => Set<XpTransaction>();
+    public DbSet<UserStamp> UserStamps => Set<UserStamp>();
+    public DbSet<UserBadge> UserBadges => Set<UserBadge>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        // ── Traveler ──────────────────────────────────────────
+        modelBuilder.Entity<Traveler>(e =>
+        {
+            e.ToTable("travelers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.AnonymousId).HasColumnName("anonymous_id").HasMaxLength(12);
+            e.Property(x => x.LinkedAccountId).HasColumnName("linked_account_id");
+            e.Property(x => x.Preferences).HasColumnName("preferences").HasColumnType("jsonb")
+             .HasConversion(
+                v => v == null ? null : v.RootElement.GetRawText(),
+                v => v == null ? null : JsonDocument.Parse(v));
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.AnonymousId).IsUnique().HasDatabaseName("idx_travelers_anonymous_id");
+            e.HasOne<PassportAccount>().WithMany().HasForeignKey(x => x.LinkedAccountId)
+             .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── PassportAccount ───────────────────────────────────
+        modelBuilder.Entity<PassportAccount>(e =>
+        {
+            e.ToTable("passport_accounts");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.OAuthProvider).HasColumnName("oauth_provider")
+             .HasConversion(
+                v => v.HasValue ? v.Value.ToString() : null,
+                v => v != null ? Enum.Parse<OAuthProvider>(v) : (OAuthProvider?)null);
+            e.Property(x => x.OAuthUserId).HasColumnName("oauth_user_id").HasMaxLength(100);
+            e.Property(x => x.Email).HasColumnName("email").HasMaxLength(255).IsRequired();
+            e.Property(x => x.PasswordHash).HasColumnName("password_hash").HasMaxLength(100);
+            e.Property(x => x.FullName).HasColumnName("full_name").HasMaxLength(100);
+            e.Property(x => x.IsEmailVerified).HasColumnName("is_email_verified").HasDefaultValue(false);
+            e.Property(x => x.EmailVerificationToken).HasColumnName("email_verification_token").HasMaxLength(50);
+            e.Property(x => x.EmailVerificationTokenExpiresAt).HasColumnName("email_verification_token_expires_at");
+            e.Property(x => x.PasswordResetToken).HasColumnName("password_reset_token").HasMaxLength(50);
+            e.Property(x => x.PasswordResetTokenExpiresAt).HasColumnName("password_reset_token_expires_at");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.IsLocked).HasColumnName("is_locked").HasDefaultValue(false);
+            e.Property(x => x.LastLoginAt).HasColumnName("last_login_at");
+
+            e.HasIndex(x => new { x.OAuthProvider, x.OAuthUserId })
+             .HasDatabaseName("idx_passport_accounts_provider_uid");
+            e.HasIndex(x => x.Email).IsUnique()
+             .HasDatabaseName("idx_passport_accounts_email");
+            e.HasIndex(x => x.EmailVerificationToken)
+             .HasDatabaseName("idx_passport_accounts_email_verification_token");
+            e.HasIndex(x => x.PasswordResetToken)
+             .HasDatabaseName("idx_passport_accounts_password_reset_token");
+        });
+
+        // ── AdminUser ─────────────────────────────────────────
+        modelBuilder.Entity<AdminUser>(e =>
+        {
+            e.ToTable("admin_users");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Username).HasColumnName("username").HasMaxLength(100);
+            e.Property(x => x.PasswordHash).HasColumnName("password_hash").HasMaxLength(255);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.Username).IsUnique().HasDatabaseName("idx_admin_users_username");
+        });
+
+        // ── Product ───────────────────────────────────────────
+        modelBuilder.Entity<Product>(e =>
+        {
+            e.ToTable("products");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.QRCode).HasColumnName("qr_code").HasMaxLength(32);
+            e.Property(x => x.ProductType).HasColumnName("product_type")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<ProductType>(v));
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
+            e.Property(x => x.ActivatedAt).HasColumnName("activated_at");
+            e.Property(x => x.ActivatedByTravelerId).HasColumnName("activated_by_traveler_id");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.QRCode).IsUnique().HasDatabaseName("idx_products_qr_code");
+            e.HasOne<Traveler>().WithMany().HasForeignKey(x => x.ActivatedByTravelerId)
+             .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── Character ─────────────────────────────────────────
+        modelBuilder.Entity<Character>(e =>
+        {
+            e.ToTable("characters");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(100);
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
+            e.Property(x => x.ModelUrl).HasColumnName("model_url");
+            e.Property(x => x.AnimationClips).HasColumnName("animation_clips").HasColumnType("jsonb")
+             .HasConversion(
+                v => v.RootElement.GetRawText(),
+                v => JsonDocument.Parse(v));
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+        });
+
+        // ── StoryChapter ──────────────────────────────────────
+        modelBuilder.Entity<StoryChapter>(e =>
+        {
+            e.ToTable("story_chapters");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Title).HasColumnName("title").HasMaxLength(200);
+            e.Property(x => x.ContentKey).HasColumnName("content_key").HasMaxLength(100);
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
+            e.Property(x => x.UnlockCondition).HasColumnName("unlock_condition").HasColumnType("jsonb")
+             .HasConversion(
+                v => v.RootElement.GetRawText(),
+                v => JsonDocument.Parse(v));
+            e.Property(x => x.SortOrder).HasColumnName("sort_order");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+        });
+
+        // ── Checkpoint ────────────────────────────────────────
+        modelBuilder.Entity<Checkpoint>(e =>
+        {
+            e.ToTable("checkpoints");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+            e.Property(x => x.Latitude).HasColumnName("latitude").HasColumnType("decimal(10,7)");
+            e.Property(x => x.Longitude).HasColumnName("longitude").HasColumnType("decimal(10,7)");
+            e.Property(x => x.Radius).HasColumnName("radius");
+            e.Property(x => x.StoryChapterId).HasColumnName("story_chapter_id");
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
+            e.Property(x => x.StoryAssetUrl).HasColumnName("story_asset_url").IsRequired(false);
+            e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasOne(x => x.StoryChapter).WithMany().HasForeignKey(x => x.StoryChapterId)
+             .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ── CheckinRecord ─────────────────────────────────────
+        modelBuilder.Entity<CheckinRecord>(e =>
+        {
+            e.ToTable("checkin_records");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.TravelerId).HasColumnName("traveler_id");
+            e.Property(x => x.CheckpointId).HasColumnName("checkpoint_id");
+            e.Property(x => x.CheckinAt).HasColumnName("checkin_at");
+            e.Property(x => x.ClientGeneratedId).HasColumnName("client_generated_id");
+            e.Property(x => x.SyncStatus).HasColumnName("sync_status")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<SyncStatus>(v));
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            // GPS fields
+            e.Property(x => x.Latitude).HasColumnName("latitude").HasColumnType("decimal(10,7)").HasDefaultValue(0.0);
+            e.Property(x => x.Longitude).HasColumnName("longitude").HasColumnType("decimal(10,7)").HasDefaultValue(0.0);
+            e.Property(x => x.Accuracy).HasColumnName("accuracy").IsRequired(false);
+
+            // Gamification fields
+            e.Property(x => x.DollTokenId).HasColumnName("doll_token_id").IsRequired(false);
+            e.Property(x => x.XpAwarded).HasColumnName("xp_awarded").HasDefaultValue(0);
+
+            e.Ignore(x => x.IsTokenCheckin); // computed property — not persisted
+
+            e.HasIndex(["TravelerId", "CheckinAt"]).HasDatabaseName("idx_checkin_records_traveler_checkin");
+            e.HasIndex(["TravelerId", "CheckpointId", "ClientGeneratedId"]).IsUnique()
+             .HasDatabaseName("idx_checkin_records_idempotency");
+
+            e.HasOne(x => x.Traveler).WithMany().HasForeignKey(x => x.TravelerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Checkpoint).WithMany().HasForeignKey(x => x.CheckpointId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Stamp ─────────────────────────────────────────────
+        modelBuilder.Entity<Stamp>(e =>
+        {
+            e.ToTable("stamps");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.TravelerId).HasColumnName("traveler_id");
+            e.Property(x => x.CheckpointId).HasColumnName("checkpoint_id");
+            e.Property(x => x.ImageUrl).HasColumnName("image_url");
+            e.Property(x => x.EarnedAt).HasColumnName("earned_at");
+
+            e.HasIndex(["TravelerId", "CheckpointId"]).IsUnique().HasDatabaseName("idx_stamps_traveler_checkpoint");
+            e.HasIndex(x => x.TravelerId).HasDatabaseName("idx_stamps_traveler_id");
+            e.HasOne(x => x.Checkpoint).WithMany().HasForeignKey(x => x.CheckpointId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Badge ─────────────────────────────────────────────
+        modelBuilder.Entity<Badge>(e =>
+        {
+            e.ToTable("badges");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(100);
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.ImageUrl).HasColumnName("image_url");
+            e.Property(x => x.ConditionType).HasColumnName("condition_type")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<ConditionType>(v));
+            e.Property(x => x.ConditionValue).HasColumnName("condition_value").HasColumnType("jsonb")
+             .HasConversion(
+                v => v.RootElement.GetRawText(),
+                v => JsonDocument.Parse(v));
+        });
+
+        // ── TravelerBadge ──────────────────────────────────────
+        modelBuilder.Entity<TravelerBadge>(e =>
+        {
+            e.ToTable("traveler_badges");
+            e.HasKey(x => new { x.TravelerId, x.BadgeId });
+            e.Property(x => x.TravelerId).HasColumnName("traveler_id");
+            e.Property(x => x.BadgeId).HasColumnName("badge_id");
+            e.Property(x => x.EarnedAt).HasColumnName("earned_at");
+
+            e.HasIndex(x => x.TravelerId).HasDatabaseName("idx_traveler_badges_traveler_id");
+            e.HasOne(x => x.Badge).WithMany().HasForeignKey(x => x.BadgeId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Partner ───────────────────────────────────────────
+        modelBuilder.Entity<Partner>(e =>
+        {
+            e.ToTable("partners");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+            e.Property(x => x.Type).HasColumnName("type")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<PartnerType>(v));
+            e.Property(x => x.ContactEmail).HasColumnName("contact_email").HasMaxLength(255);
+            e.Property(x => x.PhoneNumber).HasColumnName("phone_number").HasMaxLength(50);
+            e.Property(x => x.Address).HasColumnName("address");
+            e.Property(x => x.Latitude).HasColumnName("latitude").HasColumnType("decimal(10,7)");
+            e.Property(x => x.Longitude).HasColumnName("longitude").HasColumnType("decimal(10,7)");
+            e.Property(x => x.PriorityScore).HasColumnName("priority_score");
+            e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.PriorityScore).HasDatabaseName("idx_partners_priority_score");
+            e.HasMany(x => x.Vouchers).WithOne(v => v.Partner).HasForeignKey(v => v.PartnerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── Voucher ───────────────────────────────────────────
+        modelBuilder.Entity<Voucher>(e =>
+        {
+            e.ToTable("vouchers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.PartnerId).HasColumnName("partner_id");
+            e.Property(x => x.Title).HasColumnName("title").HasMaxLength(200);
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.DiscountType).HasColumnName("discount_type")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<DiscountType>(v));
+            e.Property(x => x.DiscountValue).HasColumnName("discount_value").HasColumnType("decimal(10,2)");
+            e.Property(x => x.MinimumSpend).HasColumnName("minimum_spend").HasColumnType("decimal(10,2)");
+            e.Property(x => x.MaxRedemptions).HasColumnName("max_redemptions");
+            e.Property(x => x.ValidFrom).HasColumnName("valid_from");
+            e.Property(x => x.ValidUntil).HasColumnName("valid_until");
+            e.Property(x => x.IsActive).HasColumnName("is_active");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.PartnerId).HasDatabaseName("idx_vouchers_partner_id");
+        });
+
+        // ── TravelerVoucher ───────────────────────────────────
+        modelBuilder.Entity<TravelerVoucher>(e =>
+        {
+            e.ToTable("traveler_vouchers");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.TravelerId).HasColumnName("traveler_id");
+            e.Property(x => x.VoucherId).HasColumnName("voucher_id");
+            e.Property(x => x.ClaimedAt).HasColumnName("claimed_at");
+            e.Property(x => x.RedeemedAt).HasColumnName("redeemed_at");
+            e.Property(x => x.RedemptionCode).HasColumnName("redemption_code").HasMaxLength(8);
+
+            e.HasIndex(x => x.RedemptionCode).IsUnique().HasDatabaseName("idx_traveler_vouchers_redemption_code");
+            e.HasIndex(x => x.TravelerId).HasDatabaseName("idx_traveler_vouchers_traveler_id");
+            e.HasOne(x => x.Voucher).WithMany().HasForeignKey(x => x.VoucherId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ChatSession ───────────────────────────────────────
+        modelBuilder.Entity<ChatSession>(e =>
+        {
+            e.ToTable("chat_sessions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.TravelerId).HasColumnName("traveler_id");
+            e.Property(x => x.StartedAt).HasColumnName("started_at");
+            e.Property(x => x.LastMessageAt).HasColumnName("last_message_at");
+            e.Property(x => x.TurnCount).HasColumnName("turn_count");
+            e.Property(x => x.CondensedContext).HasColumnName("condensed_context");
+            e.Property(x => x.CurrentCheckpointId).HasColumnName("current_checkpoint_id");
+
+            e.HasIndex(x => x.TravelerId).HasDatabaseName("idx_chat_sessions_traveler_id");
+            e.HasOne<Traveler>().WithMany().HasForeignKey(x => x.TravelerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Messages).WithOne().HasForeignKey(x => x.SessionId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── ChatMessage ───────────────────────────────────────
+        modelBuilder.Entity<ChatMessage>(e =>
+        {
+            e.ToTable("chat_messages");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.SessionId).HasColumnName("session_id");
+            e.Property(x => x.Role).HasColumnName("role")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<MessageRole>(v));
+            e.Property(x => x.Content).HasColumnName("content");
+            e.Property(x => x.AudioUrl).HasColumnName("audio_url");
+            e.Property(x => x.ActionTags).HasColumnName("action_tags").HasColumnType("text[]");
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => new { x.SessionId, x.CreatedAt }).HasDatabaseName("idx_chat_messages_session_created");
+        });
+
+        // ── Translation ───────────────────────────────────────
+        modelBuilder.Entity<Translation>(e =>
+        {
+            e.ToTable("translations");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.LanguageCode).HasColumnName("language_code").HasMaxLength(5);
+            e.Property(x => x.ContentKey).HasColumnName("content_key").HasMaxLength(100);
+            e.Property(x => x.ContentValue).HasColumnName("content_value");
+
+            e.HasIndex(["LanguageCode", "ContentKey"]).IsUnique().HasDatabaseName("idx_translations_lookup");
+        });
+
+        // ── DollToken ──────────────────────────────────────────
+        modelBuilder.Entity<DollToken>(e =>
+        {
+            e.ToTable("doll_tokens");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Token).HasColumnName("token").HasMaxLength(16).IsRequired();
+            e.Property(x => x.DollId).HasColumnName("doll_id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.GeneratedAt).HasColumnName("generated_at");
+            e.Property(x => x.ClaimedAt).HasColumnName("claimed_at");
+            e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
+            e.Property(x => x.IsUsed).HasColumnName("is_used").HasDefaultValue(false);
+            e.Property(x => x.UsedAt).HasColumnName("used_at");
+            e.Property(x => x.RowVersion).HasColumnName("row_version");
+
+            e.HasIndex(x => x.Token).IsUnique().HasDatabaseName("idx_doll_tokens_token");
+            e.HasIndex(x => x.DollId).HasDatabaseName("idx_doll_tokens_doll_id");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_doll_tokens_user_id");
+        });
+
+        // ── XpTransaction ─────────────────────────────────────
+        modelBuilder.Entity<XpTransaction>(e =>
+        {
+            e.ToTable("xp_transactions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.Amount).HasColumnName("amount");
+            e.Property(x => x.Source).HasColumnName("source")
+             .HasConversion(v => v.ToString(), v => Enum.Parse<XpSource>(v));
+            e.Property(x => x.Timestamp).HasColumnName("timestamp");
+
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_xp_transactions_user_id");
+        });
+
+        // ── CollectionItem ────────────────────────────────────
+        modelBuilder.Entity<CollectionItem>(e =>
+        {
+            e.ToTable("collection_items");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.Material).HasColumnName("material").HasMaxLength(100);
+            e.Property(x => x.Price).HasColumnName("price").HasMaxLength(50);
+            e.Property(x => x.ImageUrl).HasColumnName("image_url");
+            e.Property(x => x.IsHighlight).HasColumnName("is_highlight");
+            e.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+        });
+
+        // ── UserGamificationProfile ────────────────────────────
+        modelBuilder.Entity<UserGamificationProfile>(e =>
+        {
+            e.ToTable("user_gamification_profiles");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.TotalXp).HasColumnName("total_xp").HasDefaultValue(0);
+            e.Property(x => x.CurrentLevel).HasColumnName("current_level").HasDefaultValue(0);
+            e.Property(x => x.CheckinsCount).HasColumnName("checkins_count").HasDefaultValue(0);
+            e.Property(x => x.StampsUnlocked).HasColumnName("stamps_unlocked").HasDefaultValue(0);
+            e.Property(x => x.BadgesEarned).HasColumnName("badges_earned").HasDefaultValue(0);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+            e.Property(x => x.LastUpdatedAt).HasColumnName("last_updated_at");
+            e.Property(x => x.RowVersion).HasColumnName("row_version");
+
+            e.HasIndex(x => x.UserId).IsUnique()
+             .HasDatabaseName("idx_user_gamification_profiles_user_id");
+
+            e.HasMany(x => x.Stamps)
+             .WithOne()
+             .HasForeignKey(s => s.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(x => x.Badges)
+             .WithOne()
+             .HasForeignKey(b => b.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasMany(x => x.XpTransactions)
+             .WithOne()
+             .HasForeignKey(t => t.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ── UserStamp ──────────────────────────────────────────
+        modelBuilder.Entity<UserStamp>(e =>
+        {
+            e.ToTable("user_stamps");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.CheckpointId).HasColumnName("checkpoint_id");
+            e.Property(x => x.UnlockedAt).HasColumnName("unlocked_at");
+            e.Property(x => x.HasDollBonus).HasColumnName("has_doll_bonus").HasDefaultValue(false);
+
+            e.HasIndex(x => new { x.UserId, x.CheckpointId }).IsUnique()
+             .HasDatabaseName("idx_user_stamps_user_checkpoint");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_user_stamps_user_id");
+        });
+
+        // ── UserBadge ──────────────────────────────────────────
+        modelBuilder.Entity<UserBadge>(e =>
+        {
+            e.ToTable("user_badges");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.UserId).HasColumnName("user_id");
+            e.Property(x => x.BadgeId).HasColumnName("badge_id");
+            e.Property(x => x.EarnedAt).HasColumnName("earned_at");
+
+            e.HasIndex(x => new { x.UserId, x.BadgeId }).IsUnique()
+             .HasDatabaseName("idx_user_badges_user_badge");
+            e.HasIndex(x => x.UserId).HasDatabaseName("idx_user_badges_user_id");
+        });
+    }
+}
+

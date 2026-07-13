@@ -1,0 +1,6 @@
+@ViTale.WebApi_HostAddress = http://localhost:5089
+
+GET {{ViTale.WebApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

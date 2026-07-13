@@ -1,0 +1,113 @@
+version: "3.9"
+
+# ViTale Platform - Docker Compose (Development)
+# For production, use docker-compose.prod.yml
+
+networks:
+  vitale_net:
+    driver: bridge
+    internal: false  # allow outbound for external API calls (Groq, Azure)
+
+volumes:
+  vitale_postgres_data:
+    driver: local
+
+services:
+
+  # ── PostgreSQL 16 + PostGIS ──────────────────────────────────
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: vitale_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: vitale_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-vitale_dev_password}
+    volumes:
+      - vitale_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"          # only exposed in dev; remove in prod
+    networks:
+      - vitale_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vitale_db || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── .NET 10 Backend API ──────────────────────────────────────
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: vitale_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5000
+      DB_CONNECTION_STRING: "Host=db;Port=5432;Database=vitale_db;Username=postgres;Password=${DB_PASSWORD:-vitale_dev_password};Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20"
+      JWT_SECRET: ${JWT_SECRET}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      AZURE_TTS_KEY: ${AZURE_TTS_KEY}
+      AZURE_TTS_REGION: ${AZURE_TTS_REGION:-southeastasia}
+      OAUTH_APPLE_CLIENT_ID: ${OAUTH_APPLE_CLIENT_ID}
+      OAUTH_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID}
+      OAUTH_GOOGLE_CLIENT_SECRET: ${OAUTH_GOOGLE_CLIENT_SECRET}
+      OAUTH_FACEBOOK_APP_ID: ${OAUTH_FACEBOOK_APP_ID}
+      OAUTH_FACEBOOK_APP_SECRET: ${OAUTH_FACEBOOK_APP_SECRET}
+      CLOUDFLARE_R2_ACCESS_KEY: ${CLOUDFLARE_R2_ACCESS_KEY}
+      CLOUDFLARE_R2_SECRET_KEY: ${CLOUDFLARE_R2_SECRET_KEY}
+      CLOUDFLARE_R2_BUCKET_ASSETS: ${CLOUDFLARE_R2_BUCKET_ASSETS:-vitale-assets}
+      CLOUDFLARE_R2_ENDPOINT: ${CLOUDFLARE_R2_ENDPOINT}
+      CLOUDFLARE_R2_PUBLIC_URL: ${CLOUDFLARE_R2_PUBLIC_URL:-https://r2.vitale.vn}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-localhost}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      LOG_LEVEL: ${LOG_LEVEL:-Information}
+      ADMIN_API_KEY: ${ADMIN_API_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME}
+    ports:
+      - "5000:5000"
+    networks:
+      - vitale_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ── Next.js Frontend (dev server — replace with Cloudflare Pages in prod) ──
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: vitale_web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${OAUTH_GOOGLE_CLIENT_ID}
+      NEXT_PUBLIC_APPLE_CLIENT_ID: ${OAUTH_APPLE_CLIENT_ID}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src   # hot-reload in dev
+    networks:
+      - vitale_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+

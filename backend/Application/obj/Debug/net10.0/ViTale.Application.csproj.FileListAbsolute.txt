@@ -1,0 +1,15 @@
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\bin\Debug\net10.0\ViTale.Application.deps.json
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\bin\Debug\net10.0\ViTale.Application.dll
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\bin\Debug\net10.0\ViTale.Application.pdb
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\bin\Debug\net10.0\ViTale.Domain.dll
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\bin\Debug\net10.0\ViTale.Domain.pdb
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.csproj.AssemblyReference.cache
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.AssemblyInfoInputs.cache
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.AssemblyInfo.cs
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.csproj.CoreCompileInputs.cache
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.A.1A498EFE.Up2Date
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.dll
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\refint\ViTale.Application.dll
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ViTale.Application.pdb
+C:\Users\Admin\Desktop\ViTale\ViTale.Api\ViTale.Application\obj\Debug\net10.0\ref\ViTale.Application.dll

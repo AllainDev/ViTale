@@ -1,0 +1,221 @@
+### ViTale Authentication API Tests
+### Base URL
+@baseUrl = http://localhost:5000/api/v1
+@email = test{{$randomInt}}@example.com
+@password = SecurePass123!
+
+### ═══════════════════════════════════════════════════════════════
+### 1. Register New Account
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "fullName": "Test User"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 2. Register with Weak Password (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "weak{{$randomInt}}@example.com",
+  "password": "weak",
+  "fullName": "Test User"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 3. Register with Invalid Email (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "notanemail",
+  "password": "{{password}}",
+  "fullName": "Test User"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 4. Register Duplicate Email (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}",
+  "fullName": "Test User"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 5. Login Without Email Verification (Should Fail)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 6. Verify Email (Replace TOKEN with actual token from email/logs)
+GET {{baseUrl}}/auth/verify-email?token=REPLACE_WITH_ACTUAL_TOKEN
+
+### ═══════════════════════════════════════════════════════════════
+### 7. Login After Verification (Should Succeed)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "{{password}}"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 8. Login with Wrong Password (Should Fail)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "WrongPassword123!"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 9. Forgot Password
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 10. Reset Password (Replace TOKEN with actual token from email/logs)
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "REPLACE_WITH_ACTUAL_TOKEN",
+  "newPassword": "NewSecurePass456!"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 11. Login with New Password
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "{{email}}",
+  "password": "NewSecurePass456!"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 12. Resend Verification Email
+POST {{baseUrl}}/auth/resend-verification
+Content-Type: application/json
+
+{
+  "email": "{{email}}"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### 13. Refresh Token (Replace JWT with actual token from login response)
+POST {{baseUrl}}/auth/refresh
+Cookie: vitale_jwt=REPLACE_WITH_ACTUAL_JWT
+
+### ═══════════════════════════════════════════════════════════════
+### Test Password Strength Requirements
+### ═══════════════════════════════════════════════════════════════
+
+### Missing uppercase letter (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test1@example.com",
+  "password": "securepass123!",
+  "fullName": "Test User"
+}
+
+### Missing lowercase letter (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test2@example.com",
+  "password": "SECUREPASS123!",
+  "fullName": "Test User"
+}
+
+### Missing number (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test3@example.com",
+  "password": "SecurePass!",
+  "fullName": "Test User"
+}
+
+### Missing special character (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test4@example.com",
+  "password": "SecurePass123",
+  "fullName": "Test User"
+}
+
+### Too short (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test5@example.com",
+  "password": "Sec1!",
+  "fullName": "Test User"
+}
+
+### ═══════════════════════════════════════════════════════════════
+### OAuth Tests
+### ═══════════════════════════════════════════════════════════════
+
+### Google OAuth Login (Open in browser)
+GET {{baseUrl}}/auth/login/google
+
+### Facebook OAuth Login (Open in browser)
+GET {{baseUrl}}/auth/login/facebook
+
+### ═══════════════════════════════════════════════════════════════
+### Edge Cases
+### ═══════════════════════════════════════════════════════════════
+
+### Register with disposable email (Should Fail)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@tempmail.com",
+  "password": "{{password}}",
+  "fullName": "Test User"
+}
+
+### Forgot password for non-existent email (Should succeed with generic message)
+POST {{baseUrl}}/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "nonexistent@example.com"
+}
+
+### Reset password with expired token (Should Fail)
+POST {{baseUrl}}/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "expiredtoken123456789012345678901",
+  "newPassword": "NewSecurePass789!"
+}

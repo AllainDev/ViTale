@@ -1,0 +1,88 @@
+version: "3.9"
+
+# ViTale Platform - Production Docker Compose
+# Frontend is served by Cloudflare Pages — no web service here.
+
+networks:
+  vitale_net:
+    driver: bridge
+    internal: false
+
+volumes:
+  vitale_postgres_data:
+    driver: local
+
+services:
+
+  db:
+    image: postgis/postgis:16-3.4-alpine
+    container_name: vitale_db
+    restart: always
+    environment:
+      POSTGRES_DB: vitale_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - vitale_postgres_data:/var/lib/postgresql/data
+    expose:
+      - "5432"        # internal only — NOT exposed to host in production
+    networks:
+      - vitale_net
+    mem_limit: 512m
+    cpus: 0.5
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d vitale_db || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: vitale_api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env.prod      # load production secrets from VPS file (not committed to git)
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:5000
+    expose:
+      - "5000"
+    networks:
+      - vitale_net
+    mem_limit: 1g
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Nginx reverse proxy — routes api.vitale.vn to the api container
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: vitale_nginx
+    restart: always
+    depends_on:
+      - api
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro   # SSL certs from Let's Encrypt
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - vitale_net
+    healthcheck:
+      test: ["CMD-SHELL", "nginx -t || exit 1"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+
