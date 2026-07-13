@@ -1,5 +1,7 @@
 namespace Application.Interfaces.Services;
 
+using Application.DTOs;
+
 // ── Gamification Check-in Service ────────────────────────────
 
 public interface ICheckinService
@@ -82,3 +84,4 @@ public record GamificationClaimDollResult
     public int CurrentLevel { get; init; }
     public bool LeveledUp { get; init; }
 }
+

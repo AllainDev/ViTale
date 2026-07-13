@@ -9,6 +9,8 @@ using BCrypt.Net;
 
 namespace Infrastructure.Services;
 
+using Application.DTOs;
+
 /// <summary>JWT generation and validation using HS256 with a configurable secret.</summary>
 public class JwtAuthService : IAuthenticationService
 {
@@ -191,3 +193,4 @@ public class JwtAuthService : IAuthenticationService
     private record GoogleTokenPayload(string sub, string? email, string? aud, long exp);
     private record FacebookTokenPayload(string id, string? email);
 }
+

@@ -103,22 +103,22 @@ public class ApplicationDbContext : DbContext
         });
 
         // ── Product ───────────────────────────────────────────
+        // NOTE: A "Product" here represents a Doll MODEL (e.g., "Búp bê Hà Nội").
+        // Each physical unit has its own DollToken. The QR code printed on the
+        // physical packaging is DollToken.Token, NOT a field on Product.
         modelBuilder.Entity<Product>(e =>
         {
             e.ToTable("products");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.QRCode).HasColumnName("qr_code").HasMaxLength(32);
+            e.Property(x => x.Sku).HasColumnName("sku").HasMaxLength(64).IsRequired(false);
             e.Property(x => x.ProductType).HasColumnName("product_type")
              .HasConversion(v => v.ToString(), v => Enum.Parse<ProductType>(v));
-            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
-            e.Property(x => x.ActivatedAt).HasColumnName("activated_at");
-            e.Property(x => x.ActivatedByTravelerId).HasColumnName("activated_by_traveler_id");
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(50);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
 
-            e.HasIndex(x => x.QRCode).IsUnique().HasDatabaseName("idx_products_qr_code");
-            e.HasOne<Traveler>().WithMany().HasForeignKey(x => x.ActivatedByTravelerId)
-             .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
+            e.HasIndex(x => x.Sku).HasDatabaseName("idx_products_sku")
+             .HasFilter("sku IS NOT NULL");
         });
 
         // ── Character ─────────────────────────────────────────
@@ -364,12 +364,14 @@ public class ApplicationDbContext : DbContext
         });
 
         // ── DollToken ──────────────────────────────────────────
+        // Token format: "VID-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX" (up to 64 chars).
+        // Stores the actual QR code printed on the physical doll packaging.
         modelBuilder.Entity<DollToken>(e =>
         {
             e.ToTable("doll_tokens");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.Token).HasColumnName("token").HasMaxLength(16).IsRequired();
+            e.Property(x => x.Token).HasColumnName("token").HasMaxLength(64).IsRequired();
             e.Property(x => x.DollId).HasColumnName("doll_id");
             e.Property(x => x.UserId).HasColumnName("user_id");
             e.Property(x => x.GeneratedAt).HasColumnName("generated_at");
@@ -377,7 +379,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.ExpiresAt).HasColumnName("expires_at");
             e.Property(x => x.IsUsed).HasColumnName("is_used").HasDefaultValue(false);
             e.Property(x => x.UsedAt).HasColumnName("used_at");
-            e.Property(x => x.RowVersion).HasColumnName("row_version");
+            e.Property(x => x.RowVersion).HasColumnName("row_version").IsConcurrencyToken().ValueGeneratedNever();
 
             e.HasIndex(x => x.Token).IsUnique().HasDatabaseName("idx_doll_tokens_token");
             e.HasIndex(x => x.DollId).HasDatabaseName("idx_doll_tokens_doll_id");
@@ -429,7 +431,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.BadgesEarned).HasColumnName("badges_earned").HasDefaultValue(0);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
             e.Property(x => x.LastUpdatedAt).HasColumnName("last_updated_at");
-            e.Property(x => x.RowVersion).HasColumnName("row_version");
+            e.Property(x => x.RowVersion).HasColumnName("row_version").IsConcurrencyToken().ValueGeneratedNever();
 
             e.HasIndex(x => x.UserId).IsUnique()
              .HasDatabaseName("idx_user_gamification_profiles_user_id");

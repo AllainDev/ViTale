@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "KlT1Zp973kk=",
+  "dgSpecHash": "ULPyMtqs00g=",
   "success": true,
   "projectFilePath": "C:\\Users\\Admin\\Desktop\\ViTale\\backend\\Domain.Tests\\Domain.Tests.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.core\\3.7.400.77\\awssdk.core.3.7.400.77.nupkg.sha512",
-    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.s3\\3.7.411.5\\awssdk.s3.3.7.411.5.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.core\\4.0.100.3\\awssdk.core.4.0.100.3.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.extensions.netcore.setup\\3.7.301\\awssdk.extensions.netcore.setup.3.7.301.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.s3\\4.0.100.3\\awssdk.s3.4.0.100.3.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\coverlet.collector\\6.0.4\\coverlet.collector.6.0.4.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\fluentassertions\\7.0.0\\fluentassertions.7.0.0.nupkg.sha512",

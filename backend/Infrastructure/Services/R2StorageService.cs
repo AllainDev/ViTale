@@ -33,7 +33,6 @@ public class R2StorageService : IStorageService
         {
             ServiceURL            = endpoint,
             ForcePathStyle        = true,   // R2 requires path-style access
-            SignatureVersion      = "4",
             AuthenticationRegion  = "auto", // R2 uses "auto" region
         };
 
@@ -96,4 +95,19 @@ public class R2StorageService : IStorageService
     /// <inheritdoc />
     public string GetPublicUrl(string key) =>
         string.IsNullOrEmpty(_publicUrl) ? key : $"{_publicUrl.TrimEnd('/')}/{key}";
+
+    /// <inheritdoc />
+    public string GeneratePreSignedUrl(string key, string contentType, TimeSpan expiresIn)
+    {
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = _bucket,
+            Key = key,
+            Verb = HttpVerb.PUT,
+            Expires = DateTime.UtcNow.Add(expiresIn),
+            ContentType = contentType
+        };
+
+        return _s3.GetPreSignedURL(request);
+    }
 }

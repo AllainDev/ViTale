@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Search, Lock, Unlock, ShieldAlert } from 'lucide-react';
+import { Users, Search, Lock, Unlock, ShieldAlert, CheckCircle } from 'lucide-react';
 
 type Account = {
   id: string;
   email: string;
-  oAuthProvider: number; // 0 for Apple, 1 for Google
+  oAuthProvider: number | null; // 0 for Facebook, 1 for Google, null for Email/Password
   createdAt: string;
   isLocked: boolean;
 };
@@ -22,6 +22,8 @@ export default function AdminAccountsPage() {
   const getHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('vitale_admin_token')}`
   });
+
+  const [confirmDialog, setConfirmDialog] = useState<{ isOpen: boolean, title: string, onConfirm: () => void } | null>(null);
 
   const fetchAccounts = async () => {
     setLoading(true);
@@ -43,112 +45,163 @@ export default function AdminAccountsPage() {
   }, [page, search]);
 
   const handleToggleLock = async (id: string, isLocked: boolean) => {
-    if (!confirm(`Bạn có chắc chắn muốn ${isLocked ? 'mở khóa' : 'khóa'} tài khoản này?`)) return;
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/accounts/${id}/toggle-lock`, {
-        method: 'PUT',
-        headers: getHeaders()
-      });
-      if (res.ok) fetchAccounts();
-    } catch (e) {
-      console.error(e);
-    }
+    setConfirmDialog({
+      isOpen: true,
+      title: `Bạn có chắc chắn muốn ${isLocked ? 'mở khóa' : 'khóa'} tài khoản này?`,
+      onConfirm: async () => {
+        setConfirmDialog(null);
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/accounts/${id}/toggle-lock`, {
+            method: 'PUT',
+            headers: getHeaders()
+          });
+          if (res.ok) fetchAccounts();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    });
   };
 
-  const getProviderName = (provider: number) => {
-    return provider === 0 ? 'Apple' : 'Google';
+  const getProviderName = (provider: number | null) => {
+    if (provider === 0) return 'Facebook';
+    if (provider === 1) return 'Google';
+    return 'Email';
   };
 
   const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div>
+      {/* Header */}
+      <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-3">
-            <Users className="text-[#b2f822]" /> Tài khoản
-          </h1>
-          <p className="text-white/60 mt-1">Quản lý tài khoản người dùng đăng nhập qua Google/Apple</p>
+          <h1 className="text-2xl font-bold text-gray-800 m-0">Tài khoản khách hàng</h1>
         </div>
+        <ol className="flex text-sm text-gray-500">
+          <li><a href="/admin/dashboard" className="text-blue-600 hover:underline">Home</a></li>
+          <li className="px-2">/</li>
+          <li className="text-gray-400">Khách hàng</li>
+        </ol>
       </div>
 
-      <div className="bg-[#111820] rounded-2xl border border-white/5 overflow-hidden">
-        <div className="p-4 border-b border-white/5 flex gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 w-5 h-5" />
-            <input 
-              type="text"
-              placeholder="Tìm kiếm theo email hoặc provider..."
-              value={search}
-              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="w-full bg-black/40 border border-white/10 rounded-xl pl-10 pr-4 py-2 text-white placeholder-white/40 focus:outline-none focus:border-[#b2f822]/50"
-            />
-          </div>
+      {/* Card */}
+      <div className="bg-white rounded border-t-4 border-blue-600 shadow-sm">
+        <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
+          <h3 className="font-semibold text-gray-700">Danh sách tài khoản</h3>
         </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-black/20 text-white/60 text-sm">
-                <th className="p-4 font-medium">Email</th>
-                <th className="p-4 font-medium">Nguồn</th>
-                <th className="p-4 font-medium">Ngày tạo</th>
-                <th className="p-4 font-medium">Trạng thái</th>
-                <th className="p-4 font-medium text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-white/40">Đang tải...</td>
-                </tr>
-              ) : accounts.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-white/40">Không tìm thấy tài khoản nào</td>
-                </tr>
-              ) : (
-                accounts.map(a => (
-                  <tr key={a.id} className={`border-b border-white/5 hover:bg-white/[0.02] transition-colors ${a.isLocked ? 'opacity-60' : ''}`}>
-                    <td className="p-4 font-medium">{a.email || 'Ẩn danh'}</td>
-                    <td className="p-4 text-white/60">
-                      <span className="bg-white/10 px-2 py-1 rounded text-xs">
-                        {getProviderName(a.oAuthProvider)}
-                      </span>
-                    </td>
-                    <td className="p-4 text-white/60">{new Date(a.createdAt).toLocaleString('vi-VN')}</td>
-                    <td className="p-4">
-                      {a.isLocked ? (
-                        <span className="flex items-center gap-1 text-red-400 text-sm"><ShieldAlert size={14}/> Đã khóa</span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-[#b2f822] text-sm">Đang hoạt động</span>
-                      )}
-                    </td>
-                    <td className="p-4 text-right">
-                      <button 
-                        onClick={() => handleToggleLock(a.id, a.isLocked)} 
-                        className="p-2 hover:bg-white/10 rounded-lg text-white/60 hover:text-white transition-colors"
-                        title={a.isLocked ? "Mở khóa" : "Khóa tài khoản"}
-                      >
-                        {a.isLocked ? <Unlock size={18} className="text-[#b2f822]" /> : <Lock size={18} className="text-red-400" />}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {totalPages > 1 && (
-          <div className="p-4 border-t border-white/5 flex items-center justify-between text-sm text-white/60">
-            <div>Hiển thị {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} trong số {total} tài khoản</div>
-            <div className="flex gap-2">
-              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1 rounded-md border border-white/10 hover:bg-white/5 disabled:opacity-50">Trước</button>
-              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1 rounded-md border border-white/10 hover:bg-white/5 disabled:opacity-50">Sau</button>
+        
+        <div className="p-4">
+          {/* Search */}
+          <div className="flex justify-end mb-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <input 
+                type="text"
+                placeholder="Tìm kiếm email..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                className="w-64 border border-gray-300 rounded pl-9 pr-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all"
+              />
             </div>
           </div>
-        )}
+
+          {/* Table */}
+          <div className="overflow-x-auto border border-gray-200 rounded-sm">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead>
+                <tr className="bg-gray-100 text-gray-700 border-b border-gray-200">
+                  <th className="p-3 font-semibold">Email</th>
+                  <th className="p-3 font-semibold text-center">Nguồn</th>
+                  <th className="p-3 font-semibold text-center">Trạng thái</th>
+                  <th className="p-3 font-semibold">Ngày đăng ký</th>
+                  <th className="p-3 font-semibold text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-gray-500">Đang tải...</td></tr>
+                ) : accounts.length === 0 ? (
+                  <tr><td colSpan={5} className="p-8 text-center text-gray-500">Không tìm thấy dữ liệu</td></tr>
+                ) : (
+                  accounts.map(a => (
+                    <tr key={a.id} className={`border-b border-gray-100 hover:bg-gray-50 transition-colors ${a.isLocked ? 'bg-red-50 hover:bg-red-50' : ''}`}>
+                      <td className="p-3 font-medium text-gray-800 flex items-center gap-2">
+                        <Users size={16} className={a.isLocked ? "text-red-400" : "text-gray-400"} />
+                        {a.email}
+                      </td>
+                      <td className="p-3 text-center">
+                        <span className="bg-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs font-semibold">
+                          {getProviderName(a.oAuthProvider)}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center">
+                        {a.isLocked ? (
+                          <span className="inline-flex items-center gap-1 text-red-600 bg-red-100 px-2 py-0.5 rounded text-xs font-semibold"><Lock size={12}/> Đã khóa</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-green-600 bg-green-100 px-2 py-0.5 rounded text-xs font-semibold"><CheckCircle size={12} className="lucide lucide-check-circle"/> Hoạt động</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-gray-600">{new Date(a.createdAt).toLocaleDateString('vi-VN')}</td>
+                      <td className="p-3 text-right">
+                        {a.isLocked ? (
+                          <button onClick={() => handleToggleLock(a.id, a.isLocked)} className="p-1.5 text-green-600 hover:bg-green-100 rounded transition-colors mx-1 text-xs font-medium flex items-center gap-1 ml-auto" title="Mở khóa">
+                            <Unlock size={14} /> Mở khóa
+                          </button>
+                        ) : (
+                          <button onClick={() => handleToggleLock(a.id, a.isLocked)} className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors mx-1 text-xs font-medium flex items-center gap-1 ml-auto" title="Khóa">
+                            <Lock size={14} /> Khóa
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+              <div>Đang xem {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, total)} / {total}</div>
+              <div className="flex">
+                <button disabled={page === 1} onClick={() => setPage(p => p - 1)} className="px-3 py-1.5 border border-gray-300 rounded-l hover:bg-gray-50 disabled:opacity-50 disabled:bg-gray-100 transition-colors">Trước</button>
+                <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)} className="px-3 py-1.5 border border-gray-300 border-l-0 rounded-r hover:bg-gray-50 disabled:opacity-50 disabled:bg-gray-100 transition-colors">Sau</button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Confirm Modal */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden animate-slideUp">
+            <div className="p-5">
+              <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+                <ShieldAlert className="w-6 h-6 text-orange-600" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 text-center mb-2">Xác nhận</h3>
+              <p className="text-gray-600 text-center text-sm">{confirmDialog.title}</p>
+            </div>
+            <div className="bg-gray-50 px-4 py-3 flex gap-3 justify-end border-t border-gray-200">
+              <button 
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button 
+                onClick={confirmDialog.onConfirm}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Đồng ý
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

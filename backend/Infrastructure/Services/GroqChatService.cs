@@ -8,6 +8,8 @@ using Application.Interfaces.Services;
 
 namespace Infrastructure.Services;
 
+using Application.DTOs;
+
 /// <summary>Groq Cloud API integration for chat and summarization.</summary>
 public class GroqChatService : IAiChatService
 {
@@ -123,4 +125,5 @@ public class GroqChatService : IAiChatService
     private record GroqChoice(GroqMessage message);
     private record GroqMessage(string role, string content);
 }
+
 

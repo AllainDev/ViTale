@@ -2,6 +2,8 @@ using Domain.Entities;
 
 namespace Application.Interfaces.Services;
 
+using Application.DTOs;
+
 // ── Token Service ────────────────────────────────────────────
 
 public interface ITokenService
@@ -73,3 +75,4 @@ public record TokenInfo
     public bool IsUsed { get; init; }
     public DateTime? ExpiresAt { get; init; }
 }
+

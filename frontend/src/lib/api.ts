@@ -115,6 +115,13 @@ export interface GamificationStamp {
   hasDollBonus: boolean;
 }
 
+export interface DollDetail {
+  id: string;
+  region: string;
+  sku: string | null;
+  claimedAt: string;
+}
+
 export interface GamificationStatus {
   totalXp: number;
   currentLevel: number;
@@ -123,6 +130,7 @@ export interface GamificationStatus {
   badgesEarned: number;
   nextLevelXp: number;
   stamps: GamificationStamp[];
+  ownedDolls: DollDetail[];
 }
 
 export interface CheckinResult {
@@ -167,6 +175,8 @@ export interface ClaimDollResult {
   totalXp: number;
   currentLevel: number;
   leveledUp: boolean;
+  errorCode?: string;
+  errorMessage?: string;
 }
 
 export const gamificationApi = {

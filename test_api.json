@@ -1,0 +1,13 @@
+{
+  "dolls": [
+    {
+      "id": "11111111-0000-0000-0000-000000000001",
+      "sku": "Thăng Long Princess",
+      "region": "VN-HN",
+      "modelUrl": "https://app.vitale.vn/assets/characters/hanoi-princess-v1.glb",
+      "createdAt": "2026-07-13T10:52:11.059108Z",
+      "tokens": null
+    }
+  ],
+  "total": 1
+}

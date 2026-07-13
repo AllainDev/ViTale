@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "vxEgaxLjkU8=",
+  "dgSpecHash": "u47D3/LRagE=",
   "success": true,
   "projectFilePath": "C:\\Users\\Admin\\Desktop\\ViTale\\backend\\Infrastructure\\Infrastructure.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.core\\3.7.400.77\\awssdk.core.3.7.400.77.nupkg.sha512",
-    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.s3\\3.7.411.5\\awssdk.s3.3.7.411.5.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.core\\4.0.100.3\\awssdk.core.4.0.100.3.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.extensions.netcore.setup\\3.7.301\\awssdk.extensions.netcore.setup.3.7.301.nupkg.sha512",
+    "C:\\Users\\Admin\\.nuget\\packages\\awssdk.s3\\4.0.100.3\\awssdk.s3.4.0.100.3.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\bcrypt.net-next\\4.2.0\\bcrypt.net-next.4.2.0.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\fluentvalidation\\11.11.0\\fluentvalidation.11.11.0.nupkg.sha512",
     "C:\\Users\\Admin\\.nuget\\packages\\microsoft.entityframeworkcore\\9.0.6\\microsoft.entityframeworkcore.9.0.6.nupkg.sha512",

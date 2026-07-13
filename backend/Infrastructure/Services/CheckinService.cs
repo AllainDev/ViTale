@@ -98,10 +98,15 @@ public class CheckinService : ICheckinService
         bool isFirstCheckin = existingStamp == null;
         bool alreadyHasDollBonus = existingStamp?.HasDollBonus ?? false;
 
-        // Check if user owns an activated doll for this region
+        // Check if user owns an activated doll for this region.
+        // Only Doll products count — PassportCover or any other product type is ignored.
         var ownsDollInRegion = await _db.DollTokens
             .Where(t => t.UserId == travelerId)
-            .Join(_db.Products, t => t.DollId, p => p.Id, (t, p) => p.Region)
+            .Join(
+                _db.Products.Where(p => p.ProductType == Domain.Enums.ProductType.Doll),
+                t => t.DollId,
+                p => p.Id,
+                (t, p) => p.Region)
             .AnyAsync(r => r == checkpoint.Region, ct);
 
         bool dollBonusEligible = ownsDollInRegion && !alreadyHasDollBonus;

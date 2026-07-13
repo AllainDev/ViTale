@@ -150,3 +150,6 @@ C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\
 C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.dll
 C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
 C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\obj\Debug\net10.0\WebApi.IntegrationTests.sourcelink.json
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\DotNetEnv.dll
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Superpower.dll
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\AWSSDK.Extensions.NETCore.Setup.dll

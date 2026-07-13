@@ -1,0 +1,5 @@
+using System;
+
+namespace Domain.Exceptions;
+
+public class UnauthorizedException(string message) : Exception(message);

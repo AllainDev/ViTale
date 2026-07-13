@@ -19,11 +19,6 @@ export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, 
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName]     = useState('');
 
-  const getAdminKey = () => document.cookie
-    .split('; ')
-    .find(r => r.startsWith('admin_session='))
-    ?.split('=')[1] ?? '';
-
   const upload = useCallback(async (file: File) => {
     const maxBytes = maxSizeMB * 1024 * 1024;
     if (file.size > maxBytes) {
@@ -36,32 +31,46 @@ export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, 
     setFileName(file.name);
     setMessage('');
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const res = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: { 'X-Admin-Key': getAdminKey() },
-        body: formData,
+      // 1. Get presigned URL from backend
+      const token = localStorage.getItem('vitale_admin_token') || '';
+      const presignedRes = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/upload-presigned-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          }
+        }
+      );
+
+      if (!presignedRes.ok) {
+        throw new Error('Failed to get presigned URL');
+      }
+
+      const { presignedUrl, publicUrl } = await presignedRes.json();
+
+      // 2. Upload directly to Cloudflare R2
+      const uploadRes = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setState('error');
-        setMessage(data.message ?? 'Upload thất bại');
-        return;
+      if (!uploadRes.ok) {
+        throw new Error('Failed to upload file to R2');
       }
 
       setState('success');
-      setMessage(data.url);
-      onSuccess(data.url);
-    } catch {
+      setMessage(publicUrl);
+      onSuccess(publicUrl);
+    } catch (err: any) {
+      console.error(err);
       setState('error');
-      setMessage('Lỗi kết nối đến server');
+      setMessage(err.message || 'Lỗi upload');
     }
-  }, [uploadUrl, maxSizeMB, onSuccess]);
+  }, [maxSizeMB, onSuccess]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

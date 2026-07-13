@@ -9,6 +9,7 @@ public class GamificationStatusResponse
     public int BadgesEarned { get; set; }
     public int NextLevelXp { get; set; }
     public List<StampDetail> Stamps { get; set; } = new();
+    public List<DollDetail> OwnedDolls { get; set; } = new();
 }
 
 public class StampDetail
@@ -17,4 +18,12 @@ public class StampDetail
     public string? CheckpointName { get; set; }
     public DateTime UnlockedAt { get; set; }
     public bool HasDollBonus { get; set; }
+}
+
+public class DollDetail
+{
+    public Guid Id { get; set; }
+    public string Region { get; set; } = string.Empty;
+    public string? Sku { get; set; }
+    public DateTime ClaimedAt { get; set; }
 }

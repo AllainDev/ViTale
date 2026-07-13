@@ -430,14 +430,13 @@ namespace Infrastructure.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea")
                         .HasColumnName("row_version");
 
                     b.Property<string>("Token")
                         .IsRequired()
-                        .HasMaxLength(16)
-                        .HasColumnType("character varying(16)")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
                         .HasColumnName("token");
 
                     b.Property<DateTime?>("UsedAt")
@@ -618,14 +617,6 @@ namespace Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
-                    b.Property<DateTime?>("ActivatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("activated_at");
-
-                    b.Property<Guid?>("ActivatedByTravelerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("activated_by_traveler_id");
-
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -635,25 +626,22 @@ namespace Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("product_type");
 
-                    b.Property<string>("QRCode")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("character varying(32)")
-                        .HasColumnName("qr_code");
-
                     b.Property<string>("Region")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
                         .HasColumnName("region");
+
+                    b.Property<string>("Sku")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sku");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ActivatedByTravelerId");
-
-                    b.HasIndex("QRCode")
-                        .IsUnique()
-                        .HasDatabaseName("idx_products_qr_code");
+                    b.HasIndex("Sku")
+                        .HasDatabaseName("idx_products_sku")
+                        .HasFilter("sku IS NOT NULL");
 
                     b.ToTable("products", (string)null);
                 });
@@ -942,7 +930,6 @@ namespace Infrastructure.Migrations
                     b.Property<byte[]>("RowVersion")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea")
                         .HasColumnName("row_version");
 
@@ -1147,14 +1134,6 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("StoryChapter");
-                });
-
-            modelBuilder.Entity("Domain.Entities.Product", b =>
-                {
-                    b.HasOne("Domain.Entities.Traveler", null)
-                        .WithMany()
-                        .HasForeignKey("ActivatedByTravelerId")
-                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Domain.Entities.Stamp", b =>

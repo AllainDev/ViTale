@@ -1,5 +1,7 @@
 namespace Application.Interfaces.Services;
 
+using Application.DTOs;
+
 // ── AI Chat ─────────────────────────────────────────────────
 public interface IAiChatService
 {
@@ -7,14 +9,9 @@ public interface IAiChatService
     Task<string?> SummarizeConversationAsync(string conversationHistory, CancellationToken ct = default);
 }
 
-public record AiChatRequest(
-    string SystemPrompt,
-    IReadOnlyList<(string Role, string Content)> Messages,
-    int MaxTokens = 300);
 
-public record AiChatResponse(
-    string Text,
-    string[] ActionTags);
+
+
 
 // ── Text-to-Speech ───────────────────────────────────────────
 public interface ITextToSpeechService
@@ -33,18 +30,9 @@ public interface IAuthenticationService
     bool VerifyPassword(string password, string passwordHash);
 }
 
-public record OAuthValidationResult(
-    bool IsValid,
-    string? OAuthUserId,
-    string? Email,
-    string? Error);
 
-public record JwtValidationResult(
-    Guid Id,
-    string? EmailOrUsername,
-    bool IsRegistered,
-    string Role,
-    DateTime IssuedAt);
+
+
 
 // ── Checkpoint ───────────────────────────────────────────────
 public interface IGeolocationService
@@ -76,6 +64,9 @@ public interface IStorageService
 
     /// <summary>Returns the public URL for a given key.</summary>
     string GetPublicUrl(string key);
+
+    /// <summary>Generates a pre-signed URL for direct client uploads.</summary>
+    string GeneratePreSignedUrl(string key, string contentType, TimeSpan expiresIn);
 }
 
 
@@ -93,3 +84,4 @@ public interface IEmailValidationService
     bool IsValidEmailFormat(string email);
     Task<bool> IsValidEmailDomainAsync(string email, CancellationToken ct = default);
 }
+

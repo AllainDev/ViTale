@@ -1,6 +1,7 @@
 'use client';
 
 import AdminSidebar from '@/components/admin/AdminSidebar';
+import AdminHeader from '@/components/admin/AdminHeader';
 import AdminGuard from '@/components/admin/AdminGuard';
 import { usePathname } from 'next/navigation';
 
@@ -10,11 +11,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <AdminGuard>
-      <div className="min-h-screen bg-[#0a0f14] text-white flex">
+      <div className="min-h-screen bg-gray-100 text-gray-900 flex font-sans">
         {!isLoginPage && <AdminSidebar />}
-        <main className={`flex-1 ${!isLoginPage ? 'ml-60' : ''} min-h-screen flex flex-col`}>
-          {children}
-        </main>
+        <div className={`flex-1 ${!isLoginPage ? 'ml-64' : ''} min-h-screen flex flex-col`}>
+          {!isLoginPage && <AdminHeader />}
+          <main className={`flex-1 ${!isLoginPage ? 'p-6' : 'p-0'}`}>
+            {children}
+          </main>
+        </div>
       </div>
     </AdminGuard>
   );

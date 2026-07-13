@@ -120,6 +120,7 @@ export default function Canvas({
   const { user, logout, setJwt } = useAuth();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
+  const isProcessingQR = useRef(false);
 
   // Profile Edit States
   const [profileFullName, setProfileFullName] = useState("");
@@ -343,6 +344,7 @@ export default function Canvas({
   ]);
   const [chatInput, setChatInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [chatBlocked, setChatBlocked] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Toast feedback state
@@ -352,6 +354,20 @@ export default function Canvas({
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
   };
+
+  useEffect(() => {
+    if (activeScreen === "assistant" && user) {
+      gamificationApi.getStatus().then(status => {
+        if (!status.ownedDolls || status.ownedDolls.length === 0) {
+          setChatBlocked(true);
+        } else {
+          setChatBlocked(false);
+        }
+      }).catch(() => {
+        setChatBlocked(true);
+      });
+    }
+  }, [activeScreen, user, currentLanguage]);
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1033,25 +1049,36 @@ export default function Canvas({
           {/* ========================================================= */}
           {/* SCREEN 4: 3D ASSISTANT CHAT SCREEN (Màn hình 3)            */}
           {/* ========================================================= */}
-          {activeScreen === "assistant" && !user && (
+          {activeScreen === "assistant" && (!user || chatBlocked) && (
             <div className="flex flex-col items-center justify-center min-h-[480px] p-10 animate-fadeIn text-center gap-6">
               <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center">
                 <Bot className="w-9 h-9 text-emerald-700" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D To Nữ</h2>
-                <p className="text-stone-500 text-sm leading-relaxed">Đăng nhập để trò chuyện cùng Nàng Tô Nữ — trợ lý AI di sản văn hoá Việt Nam của bạn.</p>
+                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Tô Nữ</h2>
+                <p className="text-stone-500 text-sm leading-relaxed">
+                  {!user 
+                    ? "Đăng nhập để trò chuyện cùng Nàng Tô Nữ — trợ lý AI di sản văn hoá Việt Nam của bạn."
+                    : "Tài khoản của bạn chưa sở hữu bất kỳ Nhân vật 3D nào. Hãy sưu tầm Búp bê và quét mã QR để mở khóa tính năng Chat nhé!"
+                  }
+                </p>
               </div>
               <button
-                onClick={() => { setAuthMode("login"); setActiveScreen("auth"); }}
+                onClick={() => { 
+                  if (!user) {
+                    setAuthMode("login"); setActiveScreen("auth");
+                  } else {
+                    setShowQRScanner(true);
+                  }
+                }}
                 className="px-8 py-3 rounded-full text-sm font-bold text-white shadow-lg hover:scale-105 transition-all"
                 style={{ backgroundColor: brandTheme.primaryColor }}
               >
-                Đăng nhập ngay
+                {!user ? "Đăng nhập ngay" : "Quét mã QR ngay"}
               </button>
             </div>
           )}
-          {activeScreen === "assistant" && user && (
+          {activeScreen === "assistant" && user && !chatBlocked && (
             <div className="w-full h-[75vh] min-h-[600px] max-h-[900px] relative overflow-hidden animate-fadeIn flex flex-col md:flex-row" style={{ background: `linear-gradient(135deg, ${brandTheme.primaryColor} 0%, #1c2a1e 100%)` }}>
               
               {/* Top Status Bar */}
@@ -1591,6 +1618,8 @@ export default function Canvas({
         {showQRScanner && (
           <QRScanner 
             onScanSuccess={async (code) => {
+              if (isProcessingQR.current) return;
+              isProcessingQR.current = true;
               try {
                 triggerToast(`Đang xác thực búp bê...`);
                 const res = await gamificationApi.claimDoll(code);
@@ -1600,8 +1629,10 @@ export default function Canvas({
                 }
               } catch (e: any) {
                 triggerToast(`Lỗi: ${e.message}`);
+              } finally {
+                setShowQRScanner(false);
+                isProcessingQR.current = false;
               }
-              setShowQRScanner(false);
             }}
             onClose={() => setShowQRScanner(false)}
           />

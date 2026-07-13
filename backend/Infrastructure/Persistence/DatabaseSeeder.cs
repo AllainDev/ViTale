@@ -23,6 +23,9 @@ public static class DatabaseSeeder
 
     public static async Task SeedAsync(ApplicationDbContext db)
     {
+        // Add required PostGIS extension
+        await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS postgis;");
+
         await SeedCharactersAsync(db);
         await SeedStoryChaptersAsync(db);
         await SeedCheckpointsAsync(db);
@@ -48,7 +51,6 @@ public static class DatabaseSeeder
 
     private static async Task SeedCharactersAsync(ApplicationDbContext db)
     {
-        if (await db.Characters.AnyAsync(c => c.Id == HanoiCharacterId)) return;
 
         var animationClips = JsonDocument.Parse("""
             {
@@ -65,12 +67,12 @@ public static class DatabaseSeeder
         await db.Database.ExecuteSqlRawAsync("""
             INSERT INTO characters (id, name, region, model_url, animation_clips, description)
             VALUES ({0}, {1}, {2}, {3}, {4}::jsonb, {5})
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (id) DO UPDATE SET model_url = EXCLUDED.model_url
             """,
             HanoiCharacterId,
             "Thăng Long Princess",
             "VN-HN",
-            "https://app.vitale.vn/assets/characters/hanoi-princess-v1.glb",
+            "/models/avatar.glb",
             animationClips.RootElement.GetRawText(),
             "A legendary princess from the Lý Dynasty who guards the secrets of Thăng Long Citadel.");
     }
@@ -105,36 +107,61 @@ public static class DatabaseSeeder
 
     private static async Task SeedCheckpointsAsync(ApplicationDbContext db)
     {
-        if (await db.Checkpoints.AnyAsync(c => c.Id == CheckpointIds[0])) return;
+        // if (await db.Checkpoints.AnyAsync(c => c.Id == CheckpointIds[0])) return;
 
-        // 15 real Hanoi tourist checkpoints (GPS coordinates verified)
+        // 15 real Hanoi tourist checkpoints
         var checkpoints = new[]
         {
-            (CheckpointIds[0],  "Hoan Kiem Lake",             21.0285m, 105.8542m, 100, Story1Id),
-            (CheckpointIds[1],  "Dong Xuan Market",           21.0367m, 105.8497m, 150, Story2Id),
-            (CheckpointIds[2],  "St. Joseph's Cathedral",     21.0275m, 105.8488m, 100, Story2Id),
-            (CheckpointIds[3],  "Temple of Literature",       21.0236m, 105.8357m, 120, Story3Id),
-            (CheckpointIds[4],  "Ho Chi Minh Mausoleum",     21.0370m, 105.8345m, 200, Story3Id),
-            (CheckpointIds[5],  "One Pillar Pagoda",          21.0357m, 105.8347m, 80,  Story3Id),
-            (CheckpointIds[6],  "Hoa Lo Prison Museum",       21.0289m, 105.8453m, 100, (Guid?)null),
-            (CheckpointIds[7],  "National Museum of History", 21.0229m, 105.8597m, 100, (Guid?)null),
-            (CheckpointIds[8],  "Vietnam Museum of Ethnology",21.0338m, 105.8094m, 150, (Guid?)null),
-            (CheckpointIds[9],  "Long Bien Bridge",           21.0450m, 105.8573m, 300, (Guid?)null),
-            (CheckpointIds[10], "Bach Ma Temple",             21.0352m, 105.8507m, 80,  (Guid?)null),
-            (CheckpointIds[11], "Quan Thanh Temple",          21.0427m, 105.8378m, 100, (Guid?)null),
-            (CheckpointIds[12], "Tran Quoc Pagoda",           21.0456m, 105.8305m, 80,  (Guid?)null),
-            (CheckpointIds[13], "West Lake (Tay Ho)",         21.0545m, 105.8240m, 500, (Guid?)null),
-            (CheckpointIds[14], "Hanoi Opera House",          21.0241m, 105.8573m, 80,  (Guid?)null),
+            (CheckpointIds[0],  "Hoan Kiem Lake",             21.0285m, 105.8542m, 100, Story1Id, "Ha Noi"),
+            (CheckpointIds[1],  "Dong Xuan Market",           21.0367m, 105.8497m, 150, Story2Id, "Ha Noi"),
+            (CheckpointIds[2],  "St. Joseph's Cathedral",     21.0275m, 105.8488m, 100, Story2Id, "Ha Noi"),
+            (CheckpointIds[3],  "Temple of Literature",       21.0236m, 105.8357m, 120, Story3Id, "Ha Noi"),
+            (CheckpointIds[4],  "Ho Chi Minh Mausoleum",     21.0370m, 105.8345m, 200, Story3Id, "Ha Noi"),
+            (CheckpointIds[5],  "One Pillar Pagoda",          21.0357m, 105.8347m, 80,  Story3Id, "Ha Noi"),
+            (CheckpointIds[6],  "Hoa Lo Prison Museum",       21.0289m, 105.8453m, 100, (Guid?)null, "Ha Noi"),
+            (CheckpointIds[7],  "National Museum of History", 21.0229m, 105.8597m, 100, (Guid?)null, "Ha Noi"),
+            (CheckpointIds[8],  "Vietnam Museum of Ethnology",21.0338m, 105.8094m, 150, (Guid?)null, "Ha Noi"),
+            (CheckpointIds[9],  "Long Bien Bridge",           21.0450m, 105.8573m, 300, (Guid?)null, "Ha Noi"),
+            (CheckpointIds[10], "Bach Ma Temple",             21.0352m, 105.8507m, 80,  (Guid?)null, "Ha Noi"),
+            (CheckpointIds[11], "Quan Thanh Temple",          21.0427m, 105.8378m, 100, (Guid?)null, "Ha Noi"),
+            (CheckpointIds[12], "Tran Quoc Pagoda",           21.0456m, 105.8305m, 80,  (Guid?)null, "Ha Noi"),
+            (CheckpointIds[13], "West Lake (Tay Ho)",         21.0545m, 105.8240m, 500, (Guid?)null, "Ha Noi"),
+            (CheckpointIds[14], "Hanoi Opera House",          21.0241m, 105.8573m, 80,  (Guid?)null, "Ha Noi"),
+
+            // Home Region
+            (Guid.Parse("44444444-0000-0000-0000-000000000001"), "Nhà của bạn", 21.0275m, 105.8488m, 500, (Guid?)null, "Home"),
+
+            // School Region
+            (Guid.Parse("44444444-0000-0000-0000-000000000002"), "Trường học", 21.022320622035508m, 105.52057995771676m, 500, (Guid?)null, "School")
         };
 
-        foreach (var (id, name, lat, lon, radius, storyId) in checkpoints)
+        var allCheckpoints = checkpoints.ToList();
+        for (int i = 1; i <= 10; i++)
+        {
+            allCheckpoints.Add((
+                Guid.Parse($"55555555-0000-0000-0000-{i:D12}"), 
+                $"Trường học Test {i}", 
+                21.022320622035508m, 
+                105.52057995771676m, 
+                500, 
+                (Guid?)null, 
+                "School"
+            ));
+        }
+
+        foreach (var (id, name, lat, lon, radius, storyId, regionName) in allCheckpoints)
         {
             await db.Database.ExecuteSqlRawAsync("""
                 INSERT INTO checkpoints (id, name, latitude, longitude, radius, story_chapter_id, region, is_active, created_at)
-                VALUES ({0}, {1}, {2}, {3}, {4}, {5}, 'VN-HN', true, NOW())
-                ON CONFLICT (id) DO NOTHING
+                VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, true, NOW())
+                ON CONFLICT (id) DO UPDATE SET 
+                    name = EXCLUDED.name, 
+                    latitude = EXCLUDED.latitude, 
+                    longitude = EXCLUDED.longitude, 
+                    radius = EXCLUDED.radius,
+                    region = EXCLUDED.region
                 """,
-                id, name, lat, lon, radius, storyId);
+                id, name, lat, lon, radius, storyId, regionName);
         }
     }
 
@@ -217,21 +244,21 @@ public static class DatabaseSeeder
 
     private static async Task SeedCollectionsAsync(ApplicationDbContext db)
     {
-        if (await db.CollectionItems.AnyAsync()) return;
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM collection_items");
 
         var items = new[]
         {
-            (Guid.NewGuid(), "Non La", "VN", "Traditional Vietnamese conical hat", "Palm leaves", "150,000 VND", "/assets/collections/nonla.png", true),
-            (Guid.NewGuid(), "Ao Dai", "VN", "Traditional Vietnamese dress", "Silk", "1,500,000 VND", "/assets/collections/aodai.png", true),
-            (Guid.NewGuid(), "Dong Ho Painting", "VN", "Vietnamese folk woodcut painting", "Dzo paper", "300,000 VND", "/assets/collections/dongho.png", false),
-            (Guid.NewGuid(), "Water Puppet", "VN", "Traditional water puppet from Red River Delta", "Wood", "500,000 VND", "/assets/collections/puppet.png", false)
+            (Guid.NewGuid(), "Crochet Heritage Doll", "Northern", "Hand-woven representation of traditional northern attire, crafted with zero-waste principles.", "Organic Cotton", "₫850,000", "https://lh3.googleusercontent.com/aida-public/AB6AXuBLbsUJJHJf6fFCamOHj56yiZbVNNMxY7XT8Y8zx3ugcLUx_wwUUo0oDgNL2X44WOiuBUMzCqJ64PkEkHVz3SfKnI5aDLun8nu0rgadQyFoeQ_wu0TdgIC9aecQJwVMsLJbiTqRLxVRy7V7HQfwkmpEKR8OVquGpwBqOTFdbSTbdsOitOUjV3-tNtUUH5W7KHbwS1aPbi5fBLLMOVO6249BACsc3E_en2xlzEC66tPYXNzA4SQEF-huRw", true),
+            (Guid.NewGuid(), "Handmade Passport Cover", "Central", "Linen and pressed rice paper cover to protect your physical and digital memories.", "Recycled Paper", "₫450,000", "https://lh3.googleusercontent.com/aida-public/AB6AXuBsRmuef2oH4srUsQl77SBfVt3ZjPSJoP3fr3Wsr-JyWvmZMG_CmLW8SXUo5kfXP__U9GPvajLkirusOq7YMmgf4mi9kBi9vERj9uSidn3UBLLVTERE0UnGUx4GLlPS0Gj3mRVCTLTb9YXGBzP3WvDQk2i7hG34g-AcOxZLHdIOl4dY7Y7xDq_VF_8zxX79BM_WMfGpUiNMNAoGaofxgQ97R0CVzST0EYgSaPlwf3Hz-cXY-UnpWZgLuw", true),
+            (Guid.NewGuid(), "Saigon Eco-Boutique Gift Set", "Southern", "A curated collection of sustainable luxuries featuring organic silk and natural botanicals.", "Silk", "850k VND", "https://lh3.googleusercontent.com/aida-public/AB6AXuDFyc0QKuwo_YYHnDwpArZdLqOZeYfmoQaZ4JDfDg0r7CJOkaEqw-IWSa9iZQv2H3t5ecrnqST_bIfW47K8fZXl0xy5LReLde5oOZgzXpNrROvOv8KKI0jG9iyJLj3naug0wNB5uo-elOXH8_TsG7IXZvoVKcYLxYghrVOWOX69m7XCyuI2rR7SSAqT9mxu6_bJ50JtVj3zRG1ITTVrg5qDHG0prAIoZL6ooXqnPgrm-KMsoSC0T-rX5g", true),
+            (Guid.NewGuid(), "Sapa Indigo Charm", "Northern", "Hand-woven by the Hmong community using traditional loom techniques and deep natural indigo.", "Organic Cotton", "210k VND", "https://lh3.googleusercontent.com/aida-public/AB6AXuCPI5wMGtwxL23PMqLh8FW9qS5HraW2fwsQ1Aa3prY8sJ85Q4zidde0JcUapiKkFxtYi5oZKODf7rK5dpRFrnlMOBWrHL9ww1y8cGX1WT2oF-Q42lfWvZJ7mfbKNNfkBjKpjGtrkpUjbE6hYRdCP3NwdzeE8HEM9ZFtOIofYnKn5bIVurrM9NqKP52Ie4hkx9Zpz4OvPzUQ_H6XI3k2TDHurmm_s_cfvNYorDhhcj46Rj_NhsivZfjxyQ", false)
         };
 
         foreach (var (id, name, region, desc, material, price, img, highlight) in items)
         {
             await db.Database.ExecuteSqlRawAsync("""
-                INSERT INTO collection_items (id, name, region, description, material, price, image_url, is_highlight)
-                VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7})
+                INSERT INTO collection_items (id, name, region, description, material, price, image_url, is_highlight, is_deleted)
+                VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, false)
                 ON CONFLICT (id) DO NOTHING
                 """,
                 id, name, region, desc, material, price, img, highlight);

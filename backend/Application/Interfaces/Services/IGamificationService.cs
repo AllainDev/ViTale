@@ -3,6 +3,8 @@ using Domain.ValueObjects;
 
 namespace Application.Interfaces.Services;
 
+using Application.DTOs;
+
 // ── Gamification Service ──────────────────────────────────────
 
 public interface IGamificationService
@@ -83,3 +85,4 @@ public record GamificationStatus
     public int NextLevelXp { get; init; }
     public List<UserStampInfo> Stamps { get; init; } = new();
 }
+

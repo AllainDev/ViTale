@@ -153,6 +153,7 @@ interface AvatarRendererProps {
   animationTag: 'idle' | 'talking';
   onAvatarLoaded?: (scene: THREE.Object3D) => void;
   isPaused?: boolean;
+  modelUrl?: string;
 }
 
 export default function AvatarRenderer({
@@ -160,10 +161,12 @@ export default function AvatarRenderer({
   animationTag,
   onAvatarLoaded,
   isPaused = false,
+  modelUrl
 }: AvatarRendererProps) {
   const [modelError, setModelError] = useState<string | null>(null);
   const [webglSupported, setWebglSupported] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
+  const urlToUse = modelUrl || AVATAR_MODEL_URL;
 
   // Check WebGL support
   useEffect(() => {
@@ -243,7 +246,7 @@ export default function AvatarRenderer({
         >
           <React.Suspense fallback={<LoadingFallback />}>
             <AvatarMesh
-              modelUrl={AVATAR_MODEL_URL}
+              modelUrl={urlToUse}
               lipsSyncEngine={lipsSyncEngine}
               animationTag={animationTag}
               onLoaded={handleModelLoaded}

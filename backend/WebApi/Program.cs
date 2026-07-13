@@ -21,6 +21,7 @@ Log.Information("ViTale API starting...");
 
 try
 {
+    DotNetEnv.Env.Load();
     var builder = WebApplication.CreateBuilder(args);
 
     // ── Validate required environment variables ─────────────────────────────

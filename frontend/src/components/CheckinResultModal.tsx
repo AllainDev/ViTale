@@ -1,6 +1,8 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CheckinResult } from '../lib/api';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Props {
   result: CheckinResult | null;
@@ -16,9 +18,12 @@ interface Props {
  * Auto-closes after 8 s. User can also dismiss manually or share story.
  */
 export default function CheckinResultModal({ result, onClose, onShareStory }: Props) {
+  const { language } = useLanguage();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (!result) return;
     if (result.success) {
       timerRef.current = setTimeout(onClose, 8000);
@@ -31,7 +36,9 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
   const isLevelUp = result.leveledUp;
   const isError = !result.success;
 
-  return (
+  if (!mounted || typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
       onClick={onClose}
       style={{
@@ -69,7 +76,7 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
             background: 'none', border: 'none', cursor: 'pointer',
             color: 'var(--text-muted)', fontSize: '1.2rem', lineHeight: 1,
           }}
-          aria-label="Đóng"
+          aria-label={language === 'vi' ? 'Đóng' : 'Close'}
         >
           ✕
         </button>
@@ -86,18 +93,18 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
           fontFamily: 'var(--font-display)',
         }}>
           {isError
-            ? 'Check-in thất bại'
+            ? (language === 'vi' ? 'Check-in thất bại' : 'Check-in Failed')
             : isLevelUp
-              ? `Lên cấp ${result.currentLevel}! 🌟`
+              ? (language === 'vi' ? `Lên cấp ${result.currentLevel}! 🌟` : `Level up ${result.currentLevel}! 🌟`)
               : result.isNewStamp
-                ? 'Check-in thành công!'
+                ? (language === 'vi' ? 'Check-in thành công!' : 'Check-in Successful!')
                 : result.hasDollBonus
-                  ? 'Nhận điểm búp bê!'
-                  : 'Check-in thành công!'}
+                  ? (language === 'vi' ? 'Nhận điểm búp bê!' : 'Doll Points Received!')
+                  : (language === 'vi' ? 'Check-in thành công!' : 'Check-in Successful!')}
         </h2>
 
         <p style={{ color: isError ? 'var(--text-primary)' : 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-          {isError ? (result.errorMessage || 'Vui lòng đến gần địa điểm hơn để check-in.') : (
+          {isError ? (result.errorMessage || (language === 'vi' ? 'Vui lòng đến gần địa điểm hơn để check-in.' : 'Please move closer to the location to check-in.')) : (
             <>
               {result.checkpointName}
               {result.checkpointRegion && (
@@ -124,7 +131,7 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
             +{result.xpAwarded} XP
           </span>
           <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-            (Tổng: {(result.totalXp || 0).toLocaleString()})
+            ({language === 'vi' ? 'Tổng' : 'Total'}: {(result.totalXp || 0).toLocaleString()})
           </span>
         </div>
         )}
@@ -157,7 +164,7 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
             color: 'var(--brand-gold)',
             fontWeight: 600,
           }}>
-            🌟 Chào mừng bạn lên Cấp {result.currentLevel}!
+            🌟 {language === 'vi' ? 'Chào mừng bạn lên Cấp' : 'Welcome to Level'} {result.currentLevel}!
           </div>
         )}
 
@@ -177,7 +184,7 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
                 cursor: 'pointer',
               }}
             >
-              📸 Chia sẻ Story
+              📸 {language === 'vi' ? 'Chia sẻ Story' : 'Share Story'}
             </button>
           )}
           <button
@@ -193,10 +200,11 @@ export default function CheckinResultModal({ result, onClose, onShareStory }: Pr
               cursor: 'pointer',
             }}
           >
-            Đóng
+            {language === 'vi' ? 'Đóng' : 'Close'}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

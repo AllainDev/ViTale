@@ -20,19 +20,22 @@ public class AdminController : ControllerBase
     private readonly ILogger<AdminController> _logger;
     private readonly ApplicationDbContext _db;
     private readonly IAuthenticationService _auth;
+    private readonly ITokenService _tokenService;
 
     public AdminController(
         IStorageService storage,
         ISecureRandomService random,
         ILogger<AdminController> logger,
         ApplicationDbContext db,
-        IAuthenticationService auth)
+        IAuthenticationService auth,
+        ITokenService tokenService)
     {
         _storage = storage;
         _random = random;
         _logger = logger;
         _db = db;
         _auth = auth;
+        _tokenService = tokenService;
     }
 
     [HttpPost("login")]
@@ -104,6 +107,27 @@ public class AdminController : ControllerBase
         if (url == null) return StatusCode(500, new { message = "Failed to upload to storage." });
 
         return Ok(new { url });
+    }
+
+    /// <summary>GET /api/v1/admin/upload-presigned-url</summary>
+    [HttpGet("upload-presigned-url")]
+    public IActionResult GetUploadPresignedUrl([FromQuery] string fileName, [FromQuery] string contentType)
+    {
+        if (string.IsNullOrEmpty(fileName) || string.IsNullOrEmpty(contentType))
+        {
+            return BadRequest(new { message = "fileName and contentType are required." });
+        }
+
+        var hash = _random.GenerateFileHash(fileName + DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+        var ext = Path.GetExtension(fileName).ToLowerInvariant();
+        
+        string folder = contentType.StartsWith("image/") ? "images" : "models";
+        var key = $"{folder}/{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}-{hash[..8]}{ext}";
+
+        var presignedUrl = _storage.GeneratePreSignedUrl(key, contentType, TimeSpan.FromMinutes(15));
+        var publicUrl = _storage.GetPublicUrl(key);
+
+        return Ok(new { presignedUrl, publicUrl, key });
     }
 
     // ── CollectionItem CRUD ─────────────────────────────────────
@@ -224,6 +248,165 @@ public class AdminController : ControllerBase
         character.SoftDelete();
         await _db.SaveChangesAsync(ct);
         return NoContent();
+    }
+
+    // ── Doll (Product) + Token management ─────────────────────────────────────────
+    // The "QR" string the user actually scans is the DollToken.Token (see TokenService).
+    // Admins use these endpoints to create a Doll MODEL and then mint any number of
+    // single-use QR tokens for that model. Each physical unit sold carries one token.
+
+    /// <summary>GET /api/v1/admin/dolls — list all Doll models.</summary>
+    [HttpGet("dolls")]
+    public async Task<IActionResult> GetDolls(CancellationToken ct)
+    {
+        var dolls = await _db.Products.AsNoTracking().Where(p => p.ProductType == Domain.Enums.ProductType.Doll)
+            .OrderBy(p => p.Region).ThenBy(p => p.Id)
+            .Select(p => new
+            {
+                p.Id,
+                Sku = p.Sku,
+                p.Region,
+                ModelUrl = _db.Characters.Where(c => c.Region == p.Region && !c.IsDeleted).Select(c => c.ModelUrl).FirstOrDefault(),
+                CreatedAt = DateTime.UtcNow // fallback
+            })
+            .ToListAsync(ct);
+
+        // Count tokens per doll
+        var dollIds = dolls.Select(d => d.Id).ToList();
+        var tokenStats = await _db.DollTokens
+            .Where(t => dollIds.Contains(t.DollId))
+            .GroupBy(t => t.DollId)
+            .Select(g => new
+            {
+                DollId = g.Key,
+                Total = g.Count(),
+                Unused = g.Count(t => !t.IsUsed),
+                Used = g.Count(t => t.IsUsed)
+            })
+            .ToDictionaryAsync(x => x.DollId, ct);
+
+        var result = dolls.Select(d => new
+        {
+            d.Id, d.Sku, d.Region, d.ModelUrl, d.CreatedAt,
+            tokens = tokenStats.GetValueOrDefault(d.Id)
+        }).ToList();
+
+        return Ok(new { dolls = result, total = result.Count });
+    }
+
+    /// <summary>POST /api/v1/admin/dolls — create a new Doll model.</summary>
+    [HttpPost("dolls")]
+    public async Task<IActionResult> CreateDoll([FromBody] CreateDollRequest req, CancellationToken ct)
+    {
+        if (req == null || string.IsNullOrWhiteSpace(req.Region))
+            return BadRequest(new { success = false, message = "Region is required." });
+
+        var doll = Domain.Entities.Product.Create(req.Sku, Domain.Enums.ProductType.Doll, req.Region);
+        _db.Products.Add(doll);
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Admin created Doll {Id} (region={Region}, sku={Sku})",
+            doll.Id, doll.Region, doll.Sku);
+        return Ok(new
+        {
+            success = true,
+            doll = new { doll.Id, doll.Sku, doll.Region, doll.CreatedAt }
+        });
+    }
+
+    /// <summary>GET /api/v1/admin/dolls/{dollId}/tokens — list tokens for a doll.</summary>
+    [HttpGet("dolls/{dollId}/tokens")]
+    public async Task<IActionResult> GetDollTokens(Guid dollId, CancellationToken ct)
+    {
+        var doll = await _db.Products.FindAsync([dollId], ct); if (doll == null || doll.ProductType != Domain.Enums.ProductType.Doll)
+            return NotFound(new { message = "Model 3D not found." });
+
+        var tokens = await _db.DollTokens
+            .AsNoTracking()
+            .Where(t => t.DollId == dollId)
+            .OrderByDescending(t => t.GeneratedAt)
+            .Select(t => new
+            {
+                t.Id,
+                t.Token,
+                t.GeneratedAt,
+                t.ExpiresAt,
+                t.IsUsed,
+                t.UsedAt,
+                t.UserId,
+                t.ClaimedAt,
+                status = t.IsUsed ? "used" : (t.ExpiresAt <= DateTime.UtcNow ? "expired" : "available")
+            })
+            .ToListAsync(ct);
+
+        return Ok(new
+        {
+            doll = new { doll.Id, Sku = doll.Sku, doll.Region },
+            tokens,
+            total = tokens.Count
+        });
+    }
+
+    /// <summary>
+    /// POST /api/v1/admin/dolls/{dollId}/tokens — generate <c>count</c> new single-use tokens.
+    /// Returns the raw token strings so the admin can print them as QRs.
+    /// </summary>
+    [HttpPost("dolls/{dollId}/tokens")]
+    public async Task<IActionResult> GenerateDollTokens(
+        Guid dollId,
+        [FromBody] GenerateDollTokensRequest? req,
+        CancellationToken ct)
+    {
+        req ??= new GenerateDollTokensRequest();
+        var count = Math.Clamp(req.Count ?? 1, 1, 1000);
+
+        var doll = await _db.Products.FindAsync([dollId], ct); if (doll == null || doll.ProductType != Domain.Enums.ProductType.Doll)
+            return NotFound(new { message = "Model 3D not found." });
+
+        var generated = new List<object>(count);
+        for (int i = 0; i < count; i++)
+        {
+            var result = await _tokenService.GenerateTokenForDollAsync(dollId, ct);
+            generated.Add(new
+            {
+                result.Token,
+                dollId,
+                dollRegion = doll.Region,
+                dollSku = doll.Sku,
+                result.GeneratedAt,
+                result.ExpiresAt
+            });
+        }
+
+        _logger.LogInformation("Admin generated {Count} tokens for doll {DollId}", count, dollId);
+
+        return Ok(new
+        {
+            success = true,
+            dollId,
+            dollRegion = doll.Region,
+            count = generated.Count,
+            tokens = generated
+        });
+    }
+
+    /// <summary>
+    /// DELETE /api/v1/admin/dolls/{dollId}/tokens/{tokenId} — revoke (mark-as-used)
+    /// a single token. Use for misprinted QRs. This is irreversible.
+    /// </summary>
+    [HttpDelete("dolls/{dollId}/tokens/{tokenId}")]
+    public async Task<IActionResult> RevokeDollToken(Guid dollId, Guid tokenId, CancellationToken ct)
+    {
+        var token = await _db.DollTokens.FirstOrDefaultAsync(
+            t => t.Id == tokenId && t.DollId == dollId, ct);
+        if (token == null) return NotFound(new { message = "Token not found." });
+        if (token.IsUsed) return Conflict(new { message = "Token is already used." });
+
+        token.MarkAsUsed();
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogWarning("Admin revoked token {TokenId} for doll {DollId}", tokenId, dollId);
+        return Ok(new { success = true, message = "Token revoked." });
     }
 
     // ── Account CRUD ───────────────────────────────────────────
@@ -351,4 +534,22 @@ public class PatchCheckpointRequest
     public string? StoryAssetUrl { get; set; }
     public bool? IsActive { get; set; }
 }
+
+public class CreateDollRequest
+{
+    /// <summary>Internal SKU, e.g. "SKU-HANOI-001". Optional.</summary>
+    public string? Sku { get; set; }
+
+    /// <summary>Region the doll unlocks bonuses for, e.g. "Hà Nội". Required.</summary>
+    public string Region { get; set; } = string.Empty;
+}
+
+public class GenerateDollTokensRequest
+{
+    /// <summary>How many tokens to generate (default 1, max 1000).</summary>
+    public int? Count { get; set; }
+}
+
+
+
 

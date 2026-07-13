@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   gamificationApi,
   type GamificationStatus,
@@ -28,6 +29,7 @@ export default function PassportView() {
   
   const [activeTab, setActiveTab] = useState<'passport' | 'achievements'>('passport');
   const [storyPopup, setStoryPopup] = useState<{name: string, contentUrl: string | null} | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   const geo = useGeolocation();
 
@@ -55,6 +57,7 @@ export default function PassportView() {
   }, [activeRegion, dict]);
 
   useEffect(() => {
+    setMounted(true);
     fetchData();
   }, [fetchData]);
 
@@ -73,13 +76,13 @@ export default function PassportView() {
         let friendlyMessage: string;
         const errLower = (currentGeo.error || '').toLowerCase();
         if (errLower.includes('user denied') || errLower.includes('permission')) {
-          friendlyMessage = "Vui lòng cấp quyền truy cập vị trí để check-in.";
+          friendlyMessage = language === 'vi' ? "Vui lòng cấp quyền truy cập vị trí để check-in." : "Please grant location access to check-in.";
         } else if (errLower.includes('timed out') || errLower.includes('timeout')) {
-          friendlyMessage = "GPS phản hồi chậm — vui lòng thử lại ở nơi thoáng (gần cửa sổ / ngoài trời).";
+          friendlyMessage = language === 'vi' ? "GPS phản hồi chậm — vui lòng thử lại ở nơi thoáng (gần cửa sổ / ngoài trời)." : "GPS is slow — please try again in an open area.";
         } else if (errLower.includes('unavailable') || errLower.includes('not supported')) {
-          friendlyMessage = "Thiết bị không hỗ trợ GPS. Hãy bật định vị rồi thử lại.";
+          friendlyMessage = language === 'vi' ? "Thiết bị không hỗ trợ GPS. Hãy bật định vị rồi thử lại." : "Device does not support GPS. Please enable location and try again.";
         } else {
-          friendlyMessage = currentGeo.error || "Không thể lấy toạ độ GPS. Vui lòng thử lại.";
+          friendlyMessage = currentGeo.error || (language === 'vi' ? "Không thể lấy toạ độ GPS. Vui lòng thử lại." : "Cannot get GPS coordinates. Please try again.");
         }
 
         setCheckinResult({
@@ -202,7 +205,7 @@ export default function PassportView() {
             }`}
           >
             <Book className="w-4 h-4" />
-            {dict.passportView?.passportTab || "Hộ chiếu"}
+            {language === 'vi' ? 'Hộ chiếu' : 'Passport'}
           </button>
           <button
             onClick={() => setActiveTab('achievements')}
@@ -213,7 +216,7 @@ export default function PassportView() {
             }`}
           >
             <Award className="w-4 h-4" />
-            {dict.passportView?.achievementsTab || "Thành tựu"}
+            {dict.passportView?.achievementsTab || (language === 'vi' ? "Thành tựu" : "Achievements")}
           </button>
         </div>
       </div>
@@ -223,20 +226,31 @@ export default function PassportView() {
           {/* REGION TABS (Beautiful Scroller) */}
           <div className="mb-8">
             <div className="flex gap-3 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide px-2">
-              {regions.map(r => (
-                <button
-                  key={r}
-                  onClick={() => setActiveRegion(r)}
-                  className={`snap-center shrink-0 px-6 py-3.5 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 ${
-                    activeRegion === r 
-                      ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/30 scale-105 border-0' 
-                      : 'bg-white text-stone-600 hover:bg-stone-50 border border-stone-200 shadow-sm hover:shadow-md hover:-translate-y-0.5'
-                  }`}
-                >
-                  <Compass className={`w-4 h-4 ${activeRegion === r ? 'text-emerald-100' : 'text-stone-400'}`} />
-                  {r}
-                </button>
-              ))}
+              {regions.map(r => {
+                let regionDisplay = r;
+                if (language === 'vi') {
+                  if (r === 'Home') regionDisplay = 'Nhà của bạn';
+                  else if (r === 'School') regionDisplay = 'Trường học';
+                  else if (r === 'Ha Noi') regionDisplay = 'Hà Nội';
+                } else {
+                  if (r === 'Hà Nội') regionDisplay = 'Hanoi';
+                }
+
+                return (
+                  <button
+                    key={r}
+                    onClick={() => setActiveRegion(r)}
+                    className={`snap-center shrink-0 px-6 py-3.5 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 ${
+                      activeRegion === r 
+                        ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/30 scale-105 border-0' 
+                        : 'bg-white text-stone-600 hover:bg-stone-50 border border-stone-200 shadow-sm hover:shadow-md hover:-translate-y-0.5'
+                    }`}
+                  >
+                    <Compass className={`w-4 h-4 ${activeRegion === r ? 'text-emerald-100' : 'text-stone-400'}`} />
+                    {regionDisplay}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -251,8 +265,14 @@ export default function PassportView() {
                 checkinLoading={checkinLoading && activeCheckpointId === cp.id}
                 isAnyLoading={checkinLoading || geo.loading}
                 onCheckin={() => handleCheckin(cp.id)}
-                onReadStory={() => setStoryPopup({ name: cp.name, contentUrl: cp.storyAssetUrl || null })}
+                onReadStory={() => {
+                  const displayName = language === 'en' && cp.name === 'Nhà của bạn' ? 'Your Home' 
+                    : language === 'en' && cp.name === 'Trường học' ? 'School'
+                    : cp.name;
+                  setStoryPopup({ name: displayName, contentUrl: cp.storyAssetUrl || null });
+                }}
                 dict={dict}
+                language={language}
               />
             ))}
           </div>
@@ -274,7 +294,7 @@ export default function PassportView() {
       )}
 
       {/* STORY POPUP MODAL */}
-      {storyPopup && (
+      {storyPopup && mounted && typeof document !== 'undefined' && createPortal(
         <div 
           className="fixed inset-0 z-[100] flex items-center justify-center bg-stone-900/60 backdrop-blur-sm p-4 animate-fadeIn"
           onClick={() => setStoryPopup(null)}
@@ -286,7 +306,7 @@ export default function PassportView() {
             <div className="bg-gradient-to-r from-amber-600 to-orange-600 p-4 flex justify-between items-center text-white">
               <h3 className="font-serif font-bold text-lg flex items-center gap-2">
                 <BookOpen className="w-5 h-5" />
-                Câu chuyện: {storyPopup.name}
+                {language === 'vi' ? 'Câu chuyện:' : 'Story:'} {storyPopup.name}
               </h3>
               <button 
                 onClick={() => setStoryPopup(null)}
@@ -298,22 +318,38 @@ export default function PassportView() {
             <div className="p-6 text-stone-600 leading-relaxed text-sm max-h-[60vh] overflow-y-auto">
               {storyPopup.contentUrl ? (
                 <div>
-                  <p className="italic text-stone-500 mb-4">Mở liên kết gốc để trải nghiệm chi tiết hơn:</p>
+                  <p className="italic text-stone-500 mb-4">{language === 'vi' ? 'Mở liên kết gốc để trải nghiệm chi tiết hơn:' : 'Open original link for a more detailed experience:'}</p>
                   <a href={storyPopup.contentUrl} target="_blank" rel="noreferrer" className="text-amber-600 font-bold hover:underline">
                     {storyPopup.contentUrl}
                   </a>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <p>
-                    <strong>{storyPopup.name}</strong> lưu giữ những dấu ấn vàng son của văn hoá và lịch sử trải qua hàng ngàn năm xây dựng và phát triển. 
-                  </p>
-                  <p>
-                    Vào những năm tháng xa xưa, nơi đây không chỉ là điểm dừng chân của các bậc danh sĩ mà còn là trung tâm giao thương sầm uất. Những bức tường, những viên gạch đều thấm đẫm mồ hôi và công sức của thế hệ đi trước.
-                  </p>
-                  <p>
-                    Ngày nay, tuy cảnh vật đã có nhiều đổi thay, nhưng linh hồn của di sản vẫn còn vang vọng, nhắc nhở con cháu đời sau luôn tự hào và gìn giữ truyền thống tốt đẹp của dân tộc.
-                  </p>
+                  {language === 'vi' ? (
+                    <>
+                      <p>
+                        <strong>{storyPopup.name}</strong> lưu giữ những dấu ấn vàng son của văn hoá và lịch sử trải qua hàng ngàn năm xây dựng và phát triển. 
+                      </p>
+                      <p>
+                        Vào những năm tháng xa xưa, nơi đây không chỉ là điểm dừng chân của các bậc danh sĩ mà còn là trung tâm giao thương sầm uất. Những bức tường, những viên gạch đều thấm đẫm mồ hôi và công sức của thế hệ đi trước.
+                      </p>
+                      <p>
+                        Ngày nay, tuy cảnh vật đã có nhiều đổi thay, nhưng linh hồn của di sản vẫn còn vang vọng, nhắc nhở con cháu đời sau luôn tự hào và gìn giữ truyền thống tốt đẹp của dân tộc.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p>
+                        <strong>{storyPopup.name}</strong> preserves the golden marks of culture and history through thousands of years of construction and development.
+                      </p>
+                      <p>
+                        In ancient times, this place was not only a stopover for famous scholars but also a bustling trading center. The walls and bricks are imbued with the sweat and effort of the previous generation.
+                      </p>
+                      <p>
+                        Today, although the scenery has changed a lot, the soul of the heritage still echoes, reminding future generations to always be proud of and preserve the nation's beautiful traditions.
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -322,11 +358,12 @@ export default function PassportView() {
                 onClick={() => setStoryPopup(null)}
                 className="px-6 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 font-bold rounded-lg transition-colors text-sm"
               >
-                Đóng
+                {language === 'vi' ? 'Đóng' : 'Close'}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
@@ -340,7 +377,8 @@ function CheckpointCard({
   isAnyLoading,
   onCheckin,
   onReadStory,
-  dict
+  dict,
+  language
 }: { 
   checkpoint: GamificationCheckpoint;
   geoLoading: boolean;
@@ -350,7 +388,12 @@ function CheckpointCard({
   onCheckin: () => void;
   onReadStory: () => void;
   dict: any;
+  language: string;
 }) {
+  const displayName = language === 'en' && checkpoint.name === 'Nhà của bạn' ? 'Your Home' 
+    : language === 'en' && checkpoint.name === 'Trường học' ? 'School'
+    : checkpoint.name;
+
   return (
     <div className={`relative overflow-hidden p-6 rounded-3xl transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${
       checkpoint.isVisited 
@@ -363,7 +406,11 @@ function CheckpointCard({
       
       <div className="relative z-10">
         <div className="flex justify-between items-start mb-4">
-          <h3 className="font-serif text-xl font-bold text-stone-800 leading-tight pr-4">{checkpoint.name}</h3>
+          <h3 className="font-serif text-xl font-bold text-stone-800 leading-tight pr-4">
+            {language === 'en' && checkpoint.name === 'Nhà của bạn' ? 'Your Home' 
+              : language === 'en' && checkpoint.name === 'Trường học' ? 'School'
+              : checkpoint.name}
+          </h3>
           {checkpoint.isVisited && (
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 shadow-sm border border-emerald-200">
               <span className="text-emerald-600 font-bold">✓</span>
@@ -425,7 +472,7 @@ function CheckpointCard({
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-bold text-sm shadow-md shadow-orange-600/20 hover:shadow-lg hover:-translate-y-0.5 active:scale-95 transition-all"
             >
               <BookOpen className="w-4 h-4" />
-              Xem câu chuyện
+              {language === 'vi' ? 'Xem câu chuyện' : 'Read Story'}
             </button>
           )}
         </div>

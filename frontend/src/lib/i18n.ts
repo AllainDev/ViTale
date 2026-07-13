@@ -1,4 +1,4 @@
-export const dict = {
+const rawDict = {
   vi: {
     // Canvas legacy keys
     brandName: "VITALE",
@@ -306,6 +306,8 @@ export const dict = {
     }
   }
 };
+
+export const dict = JSON.parse(JSON.stringify(rawDict).normalize("NFC")) as typeof rawDict;
 
 export type Translations = typeof dict.vi;
 export type Language = keyof typeof dict;
