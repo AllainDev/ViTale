@@ -45,6 +45,7 @@ import QRScanner from "./QRScanner";
 import { useAuth } from "../context/AuthContext";
 import GoogleLoginButton from "./auth/GoogleLoginButton";
 import FacebookLoginButton from "./auth/FacebookLoginButton";
+import { ChatPanel } from "./Chat/ChatPanel";
 
 const translateAuthError = (err: string, lang: string) => {
   if (lang !== 'vi' || !err) return err;
@@ -357,6 +358,13 @@ export default function Canvas({
 
   useEffect(() => {
     if (activeScreen === "assistant" && user) {
+      // Dev bypass: skip the gamification/doll check and unlock chat immediately.
+      const isDev = typeof window !== 'undefined'
+        && new URLSearchParams(window.location.search).get('dev') === '1';
+      if (isDev) {
+        setChatBlocked(false);
+        return;
+      }
       gamificationApi.getStatus().then(status => {
         if (!status.ownedDolls || status.ownedDolls.length === 0) {
           setChatBlocked(true);
@@ -1080,7 +1088,7 @@ export default function Canvas({
           )}
           {activeScreen === "assistant" && user && !chatBlocked && (
             <div className="w-full h-[75vh] min-h-[600px] max-h-[900px] relative overflow-hidden animate-fadeIn flex flex-col md:flex-row" style={{ background: `linear-gradient(135deg, ${brandTheme.primaryColor} 0%, #1c2a1e 100%)` }}>
-              
+
               {/* Top Status Bar */}
               <div className="absolute top-0 left-0 z-20 p-6 pointer-events-none">
                 <div className="bg-black/30 backdrop-blur-xl border border-white/20 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-xl">
@@ -1090,99 +1098,21 @@ export default function Canvas({
               </div>
 
               {/* Left Side: 3D Avatar */}
-              <div className="w-full md:w-1/2 h-[350px] md:h-auto relative z-0">
+              <div className="md:w-1/2 h-1/2 md:h-full relative z-0">
                 <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(ellipse at 50% 100%, #a8e0b0 0%, transparent 70%)' }} />
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/20 z-10 pointer-events-none hidden md:block" />
                 <div className="absolute inset-0 z-0 w-full h-full">
-                  <AvatarRenderer 
+                  <AvatarRenderer
                     lipsSyncEngine={null}
-                    animationTag={animTag} 
-                    onAvatarLoaded={() => setAvatarLoaded(true)} 
+                    animationTag={animTag}
+                    onAvatarLoaded={() => setAvatarLoaded(true)}
                   />
                 </div>
               </div>
 
-              {/* Right Side: Chat UI Area */}
-              <div className="w-full md:w-1/2 flex flex-col justify-end p-4 md:p-8 md:pl-0 z-20 h-auto md:h-full">
-                
-                <div className="w-full h-full flex flex-col justify-end max-h-[70vh] md:max-h-full">
-                  
-                  {/* Messages Scroll Area */}
-                  <div 
-                    className="flex-1 overflow-y-auto pr-4 space-y-6 scrollbar-hide flex flex-col"
-                    style={{ 
-                      WebkitMaskImage: 'linear-gradient(to top, black 85%, transparent 100%)',
-                      maskImage: 'linear-gradient(to top, black 85%, transparent 100%)'
-                    }}
-                  >
-                    <div className="mt-auto flex flex-col gap-6 pt-20">
-                      {chatHistory.map((item) => {
-                        const isAi = item.role === "assistant";
-                        return (
-                          <div 
-                            key={item.id} 
-                            className={`flex gap-3 w-full ${isAi ? "justify-start" : "justify-end"}`}
-                          >
-                            {isAi && (
-                              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-lg font-serif font-black text-sm bg-black/50 backdrop-blur-xl border border-white/20 text-amber-200">
-                                Tô
-                              </div>
-                            )}
-                            <div 
-                              className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed shadow-2xl backdrop-blur-xl border ${
-                                isAi 
-                                  ? "bg-black/50 text-stone-100 border-white/10 rounded-tl-sm" 
-                                  : "bg-emerald-600/90 text-white border-emerald-400/30 rounded-tr-sm"
-                              }`}
-                            >
-                              <p className="whitespace-pre-wrap drop-shadow-sm">{item.text}</p>
-                              <span className={`text-[10px] font-medium block mt-2 text-right opacity-60`}>
-                                {item.timestamp}
-                              </span>
-                            </div>
-                          </div>
-                        );
-                      })}
-
-                      {/* Typing indicator */}
-                      {isTyping && (
-                        <div className="flex gap-3 w-full justify-start animate-fadeIn">
-                          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-lg font-serif font-black text-sm bg-black/50 backdrop-blur-xl border border-white/20 text-amber-200 animate-pulse">
-                            Tô
-                          </div>
-                          <div className="bg-black/50 backdrop-blur-xl text-stone-300 border border-white/10 p-4 rounded-2xl rounded-tl-sm text-sm flex items-center gap-1 shadow-2xl">
-                            <span className="animate-bounce font-black">.</span>
-                            <span className="animate-bounce [animation-delay:0.2s] font-black">.</span>
-                            <span className="animate-bounce [animation-delay:0.4s] font-black">.</span>
-                          </div>
-                        </div>
-                      )}
-                      <div ref={chatBottomRef} />
-                    </div>
-                  </div>
-
-                  {/* Send Action Bar */}
-                  <form 
-                    onSubmit={handleSendChatMessage}
-                    className="mt-4 bg-black/50 backdrop-blur-2xl border border-white/20 rounded-2xl p-2.5 flex gap-3 shadow-2xl transition-all focus-within:bg-black/60 focus-within:border-emerald-500/50 shrink-0"
-                  >
-                    <input
-                      type="text"
-                      value={chatInput}
-                      onChange={(e) => setChatInput(e.target.value)}
-                      placeholder={currentLanguage === 'vi' ? "Hỏi Tô Nữ về Hồ Hoàn Kiếm, Huế, Sài Gòn, Sapa..." : "Ask To Nu about Hoan Kiem Lake, Hue, Saigon, Sapa..."}
-                      className="flex-1 text-[15px] font-medium bg-transparent text-white placeholder-stone-400/80 px-4 py-2 focus:outline-none"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!chatInput.trim() || isTyping}
-                      className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-[0_0_20px_rgba(52,211,153,0.3)]"
-                    >
-                      <Send className="w-5 h-5 ml-1" />
-                    </button>
-                  </form>
-
-                </div>
+              {/* Right Side: New ChatPanel */}
+              <div className="md:w-1/2 h-1/2 md:h-full border-l border-stone-200 bg-white">
+                <ChatPanel />
               </div>
             </div>
           )}
