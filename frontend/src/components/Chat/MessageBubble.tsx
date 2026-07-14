@@ -131,9 +131,9 @@ function renderInline(text: string): React.ReactNode {
     if (m.index > lastIndex) {
       parts.push(remaining.slice(lastIndex, m.index));
     }
-    if (m[1]) parts.push(<strong key={key++} className="font-bold text-stone-900">{m[2]}</strong>);
+    if (m[1]) parts.push(<strong key={key++} className="font-bold text-stone-900 dark:text-gray-100">{m[2]}</strong>);
     else if (m[3]) parts.push(<em key={key++} className="italic">{m[4]}</em>);
-    else if (m[5]) parts.push(<code key={key++} className="px-1 py-0.5 rounded bg-stone-100 text-[var(--color-mai-silk)] font-mono text-xs">{m[5]}</code>);
+    else if (m[5]) parts.push(<code key={key++} className="px-1 py-0.5 rounded bg-stone-100 dark:bg-white/10 text-[var(--color-mai-silk)] font-mono text-xs">{m[5]}</code>);
     lastIndex = m.index + m[0].length;
   }
   if (lastIndex < remaining.length) {
@@ -196,9 +196,10 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
 
   if (isSystem) {
     return (
-      <div className="text-center text-xs text-stone-600
-                      bg-amber-50 border border-amber-200
-                      rounded-lg px-3 py-2 mx-auto max-w-md">
+      <div className="text-center text-xs text-stone-600 dark:text-amber-200
+                      bg-amber-50 dark:bg-amber-900/20
+                      border border-amber-200 dark:border-amber-700/30
+                      rounded-lg px-3 py-2 mx-auto max-w-md transition-colors">
         {message.content}
       </div>
     );
@@ -209,8 +210,10 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
       <div className={`max-w-[85%] px-4 py-3 ${
         isUser
           ? 'bg-[var(--color-mai-silk)] text-white rounded-2xl rounded-br-sm shadow-md'
-          : `bg-white text-stone-800 border border-[var(--color-mai-silk)]/30 shadow-md
-             rounded-2xl rounded-bl-sm
+          : `bg-white dark:bg-white/10
+             text-stone-800 dark:text-gray-100
+             border border-[var(--color-mai-silk)]/30 dark:border-white/15
+             shadow-md rounded-2xl rounded-bl-sm
              ${isStreaming ? 'animate-pulse-glow' : ''}`
       }`}>
         <div className="leading-relaxed">
@@ -228,8 +231,8 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
         )}
 
         {!isUser && (message.toolCalls?.length || 0) > 0 && (
-          <details className="mt-2 text-[10px] text-stone-500">
-            <summary className="cursor-pointer hover:text-stone-700">
+          <details className="mt-2 text-[10px] text-stone-500 dark:text-gray-500">
+            <summary className="cursor-pointer hover:text-stone-700 dark:hover:text-gray-300">
               {language === 'vi' ? 'Nguồn' : 'Sources'}
             </summary>
             <div className="mt-1 space-y-0.5">

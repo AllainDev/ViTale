@@ -18,7 +18,31 @@ export function PersonaIndicator() {
         <Sparkles className="w-3.5 h-3.5 text-[var(--color-mai-silk)]" />
         <div className="w-px h-4 bg-[var(--color-mai-bone)]/20" />
         <LanguageToggle />
+        <div className="w-px h-4 bg-[var(--color-mai-bone)]/20" />
+        <ThemeToggleInline />
       </div>
     </div>
+  );
+}
+
+// Inline theme toggle (sun/moon) — co-located with language toggle
+import { Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/context/ThemeContext';
+
+function ThemeToggleInline() {
+  const { theme, toggleTheme } = useTheme();
+  const isDark = theme === 'dark';
+  return (
+    <button
+      onClick={toggleTheme}
+      aria-label={isDark ? 'Chuyển nền sáng' : 'Chuyển nền tối'}
+      aria-pressed={isDark}
+      title={isDark ? 'Chuyển nền sáng' : 'Chuyển nền tối'}
+      className="px-2 py-0.5 text-[10px] font-bold tracking-wider transition-colors
+                 text-[var(--color-mai-bone)]/60 hover:text-[var(--color-mai-bone)]
+                 hover:bg-white/5 rounded-sm flex items-center gap-1"
+    >
+      {isDark ? <Sun className="w-3 h-3" /> : <Moon className="w-3 h-3" />}
+    </button>
   );
 }

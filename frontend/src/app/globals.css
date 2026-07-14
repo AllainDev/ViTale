@@ -1,8 +1,33 @@
 @import "tailwindcss";
 
+/* Tailwind 4 — enable dark mode via .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ══════════════════════════════════════════════════════════════════
-   THEME VARIABLES
+   THEME VARIABLES + DARK MODE TOKENS
    ══════════════════════════════════════════════════════════════════ */
+:root {
+  --body-bg: #f5f3ef;
+  --body-text: #1c1917;
+  --chat-bg: #FAFAFA;
+  --chat-text: #1c1917;
+  --chat-text-muted: #6b7280;
+  --chat-card-bg: #ffffff;
+  --chat-border: rgba(0, 0, 0, 0.08);
+  --chat-input-bg: rgba(255, 255, 255, 0.85);
+  --mai-night: #0E0E27;
+}
+.dark {
+  --body-bg: #0F0F1F;
+  --body-text: #E5E7EB;
+  --chat-bg: #14152A;
+  --chat-text: #E5E7EB;
+  --chat-text-muted: #9CA3AF;
+  --chat-card-bg: #1F2036;
+  --chat-border: rgba(255, 255, 255, 0.12);
+  --chat-input-bg: rgba(31, 32, 54, 0.85);
+}
+
 @theme {
   --font-serif: "Noto Serif", var(--font-playfair), serif;
   --font-sans: var(--font-inter), sans-serif;

@@ -45,7 +45,8 @@ export function SuggestionChips({ lastMsg }: { lastMsg: ChatMessage }) {
           className="px-3 py-1.5 text-xs
                      bg-[var(--color-mai-silk)]/10 hover:bg-[var(--color-mai-silk)]/20
                      border border-[var(--color-mai-silk)]/30 hover:border-[var(--color-mai-silk)]/60
-                     rounded-full text-[var(--color-mai-bone)]/90
+                     rounded-full
+                     text-stone-700 dark:text-gray-200
                      transition-colors"
         >
           {s}
