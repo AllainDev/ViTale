@@ -48,9 +48,22 @@ public class MiniMaxChatProvider : IChatProvider
         {
             new { role = "system", content = req.SystemPrompt }
         };
-        foreach (var (role, content) in req.Messages)
+        foreach (var msg in req.Messages)
         {
-            messages.Add(new { role, content });
+            if (msg.Role == "tool" && !string.IsNullOrEmpty(msg.ToolCallId))
+            {
+                messages.Add(new
+                {
+                    role = "tool",
+                    tool_call_id = msg.ToolCallId,
+                    name = msg.ToolName ?? "",
+                    content = msg.Content
+                });
+            }
+            else
+            {
+                messages.Add(new { role = msg.Role, content = msg.Content });
+            }
         }
 
         object body = new

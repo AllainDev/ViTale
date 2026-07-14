@@ -38,7 +38,7 @@ public class ChatProviderChainTests
         var chain = new ChatProviderChain(new[] { primary, fallback }, NullLogger<ChatProviderChain>.Instance);
 
         var result = await chain.CompleteAsync(new ChatCompletionRequest(
-            "sys", Array.Empty<(string, string)>(), null, "model", 100, 0.7));
+            "sys", Array.Empty<ChatMessage>(), null, "model", 100, 0.7));
 
         Assert.Equal("primary", result.ProviderName);
         Assert.Equal(1, primary.CallCount);
@@ -53,7 +53,7 @@ public class ChatProviderChainTests
         var chain = new ChatProviderChain(new[] { primary, fallback }, NullLogger<ChatProviderChain>.Instance);
 
         var result = await chain.CompleteAsync(new ChatCompletionRequest(
-            "sys", Array.Empty<(string, string)>(), null, "model", 100, 0.7));
+            "sys", Array.Empty<ChatMessage>(), null, "model", 100, 0.7));
 
         Assert.Equal("fallback", result.ProviderName);
         Assert.Equal(1, primary.CallCount);
@@ -69,7 +69,7 @@ public class ChatProviderChainTests
 
         await Assert.ThrowsAsync<AggregateException>(() =>
             chain.CompleteAsync(new ChatCompletionRequest(
-                "sys", Array.Empty<(string, string)>(), null, "model", 100, 0.7)));
+                "sys", Array.Empty<ChatMessage>(), null, "model", 100, 0.7)));
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public class ChatProviderChainTests
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
             chain.CompleteAsync(new ChatCompletionRequest(
-                "sys", Array.Empty<(string, string)>(), null, "model", 100, 0.7)));
+                "sys", Array.Empty<ChatMessage>(), null, "model", 100, 0.7)));
         Assert.Equal(0, fallback.CallCount);
     }
 }

@@ -46,10 +46,34 @@ public class GroqChatProvider : IChatProvider
         {
             new { role = "system", content = req.SystemPrompt }
         };
-        foreach (var (role, content) in req.Messages)
+        foreach (var msg in req.Messages)
         {
-            var safeContent = role == "user" ? $"\"\"\"{content.Replace("\"", "'")}\"\"\"" : content;
-            messages.Add(new { role, content = safeContent });
+            if (msg.Role == "tool" && !string.IsNullOrEmpty(msg.ToolCallId))
+            {
+                // OpenAI/Groq tool-role messages require tool_call_id + name + content
+                messages.Add(new
+                {
+                    role = "tool",
+                    tool_call_id = msg.ToolCallId,
+                    name = msg.ToolName ?? "",
+                    content = msg.Content
+                });
+            }
+            else if (msg.Role == "assistant" && !string.IsNullOrEmpty(msg.ToolCallId))
+            {
+                // Assistant message that requested tool calls
+                messages.Add(new
+                {
+                    role = "assistant",
+                    content = msg.Content,
+                    tool_call_id = msg.ToolCallId
+                });
+            }
+            else
+            {
+                var safeContent = msg.Role == "user" ? $"\"\"\"{msg.Content.Replace("\"", "'")}\"\"\"" : msg.Content;
+                messages.Add(new { role = msg.Role, content = safeContent });
+            }
         }
 
         object body;
@@ -86,8 +110,14 @@ public class GroqChatProvider : IChatProvider
         }
 
         var json = JsonSerializer.Serialize(body);
+        _logger.LogDebug("[{Name}] request body length: {Len}", _name, json.Length);
         var response = await _http.PostAsync("chat/completions",
             new StringContent(json, Encoding.UTF8, "application/json"), ct);
+        if (!response.IsSuccessStatusCode)
+        {
+            var errBody = await response.Content.ReadAsStringAsync(ct);
+            _logger.LogError("[{Name}] Groq error {Status}: {Err}", _name, (int)response.StatusCode, errBody);
+        }
         response.EnsureSuccessStatusCode();
 
         var result = await response.Content.ReadFromJsonAsync<GroqResponse>(ct)
@@ -109,6 +139,7 @@ public class GroqChatProvider : IChatProvider
     {
         if (calls == null || calls.Length == 0) return Array.Empty<ToolCall>();
         return calls.Select(c => new ToolCall(
+            Id: c.GetProperty("id").GetString() ?? "",
             Name: c.GetProperty("function").GetProperty("name").GetString() ?? "",
             ArgumentsJson: c.GetProperty("function").GetProperty("arguments").GetString() ?? "{}"
         )).ToList();

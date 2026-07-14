@@ -11,6 +11,7 @@ using Domain.Enums;
 using Infrastructure.Services;
 using Infrastructure.Services.Providers;
 using WebApi.Middleware;
+using ChatMessage = Application.Interfaces.Services.ChatMessage;
 
 namespace WebApi.Controllers;
 
@@ -82,7 +83,7 @@ public class ChatController : BaseController
 
         // 4. Build conversation history (last 10 messages)
         var history = await _messages.GetBySessionIdAsync(session.Id, ct);
-        var messages = new List<(string Role, string Content)>();
+        var messages = new List<ChatMessage>();
         foreach (var msg in history.TakeLast(10))
         {
             var role = msg.Role switch
@@ -91,9 +92,9 @@ public class ChatController : BaseController
                 MessageRole.Assistant => "assistant",
                 _ => "system"
             };
-            messages.Add((role, msg.Content));
+            messages.Add(new ChatMessage(role, msg.Content));
         }
-        messages.Add(("user", request.Message));
+        messages.Add(new ChatMessage("user", request.Message));
 
         // 5. First LLM call (with tools if provider supports it)
         var supportsTools = _provider.SupportsToolCalling;
@@ -116,7 +117,12 @@ public class ChatController : BaseController
             {
                 invokedTools.Add(call.Name);
                 var result = await _toolExecutor.ExecuteAsync(call.Name, call.ArgumentsJson, language, ct);
-                messages.Add(("tool", JsonSerializer.Serialize(result)));
+                messages.Add(new ChatMessage(
+                    Role: "tool",
+                    Content: JsonSerializer.Serialize(result),
+                    ToolCallId: call.Id,
+                    ToolName: call.Name
+                ));
             }
 
             // 7. Second LLM call with tool results
@@ -141,9 +147,9 @@ public class ChatController : BaseController
             .Select(m => m.Groups[1].Value).Distinct().ToArray();
 
         // 9. Save messages
-        var userMsg = ChatMessage.Create(session.Id, MessageRole.User, request.Message);
+        var userMsg = Domain.Entities.ChatMessage.Create(session.Id, MessageRole.User, request.Message);
         await _messages.CreateAsync(userMsg, ct);
-        var assistantMsg = ChatMessage.Create(session.Id, MessageRole.Assistant, finalContent);
+        var assistantMsg = Domain.Entities.ChatMessage.Create(session.Id, MessageRole.Assistant, finalContent);
         await _messages.CreateAsync(assistantMsg, ct);
 
         _logger.LogInformation(

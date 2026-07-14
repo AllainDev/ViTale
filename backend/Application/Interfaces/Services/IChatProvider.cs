@@ -18,11 +18,22 @@ public interface IChatProvider
 
 public record ChatCompletionRequest(
     string SystemPrompt,
-    IReadOnlyList<(string Role, string Content)> Messages,
+    IReadOnlyList<ChatMessage> Messages,
     IReadOnlyList<ToolDefinition>? Tools,
     string Model,
     int MaxTokens,
     double Temperature
+);
+
+/// <summary>
+/// One message in the conversation. Supports tool-role messages with
+/// tool_call_id (required by OpenAI-compatible APIs like Groq).
+/// </summary>
+public record ChatMessage(
+    string Role,
+    string Content,
+    string? ToolCallId = null,
+    string? ToolName = null
 );
 
 public record ChatCompletionResult(
@@ -33,7 +44,7 @@ public record ChatCompletionResult(
     int CompletionTokens
 );
 
-public record ToolCall(string Name, string ArgumentsJson);
+public record ToolCall(string Id, string Name, string ArgumentsJson);
 
 public record ToolDefinition(
     string Name,
