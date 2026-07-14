@@ -22,6 +22,9 @@ public class CheckpointRepository : ICheckpointRepository
     public async Task<IReadOnlyList<Checkpoint>> GetAllActiveAsync(CancellationToken ct = default) =>
         await _db.Checkpoints.Where(c => c.IsActive).Include(c => c.StoryChapter).ToListAsync(ct);
 
+    public async Task<IReadOnlyList<Checkpoint>> GetActiveAsync(CancellationToken ct = default) =>
+        await GetAllActiveAsync(ct);
+
     public async Task<IReadOnlyList<(Checkpoint Checkpoint, double DistanceMeters)>> GetNearbyAsync(
         decimal lat, decimal lng, int radiusMeters, int maxResults = 20, CancellationToken ct = default)
     {
