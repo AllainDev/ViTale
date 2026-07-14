@@ -1,0 +1,54 @@
+# Review package: 43a145b..bd218ff
+
+## Commits
+bd218ff feat: add HanoiKnowledgeService interface + chunk DTO
+
+## Files changed
+ backend/Application/DTOs/HanoiKnowledgeChunk.cs         | 12 ++++++++++++
+ .../Interfaces/Services/IHanoiKnowledgeService.cs       | 17 +++++++++++++++++
+ 2 files changed, 29 insertions(+)
+
+## Diff
+diff --git a/backend/Application/DTOs/HanoiKnowledgeChunk.cs b/backend/Application/DTOs/HanoiKnowledgeChunk.cs
+new file mode 100644
+index 0000000..3797102
+--- /dev/null
++++ b/backend/Application/DTOs/HanoiKnowledgeChunk.cs
+@@ -0,0 +1,12 @@
++namespace Application.DTOs;
++
++/// <summary>
++/// A single retrieved KB chunk used to ground the LLM's response.
++/// </summary>
++public record HanoiKnowledgeChunk(
++    string Topic,
++    string Question,
++    string Answer,
++    string? Source,
++    string Category
++);
+\ No newline at end of file
+diff --git a/backend/Application/Interfaces/Services/IHanoiKnowledgeService.cs b/backend/Application/Interfaces/Services/IHanoiKnowledgeService.cs
+new file mode 100644
+index 0000000..31901e7
+--- /dev/null
++++ b/backend/Application/Interfaces/Services/IHanoiKnowledgeService.cs
+@@ -0,0 +1,17 @@
++using Application.DTOs;
++
++namespace Application.Interfaces.Services;
++
++/// <summary>
++/// Retrieves relevant Hà Nội knowledge base chunks via Postgres full-text
++/// search to inject into the chat LLM's system prompt (RAG-lite).
++/// </summary>
++public interface IHanoiKnowledgeService
++{
++    Task<IReadOnlyList<HanoiKnowledgeChunk>> SearchAsync(
++        string query,
++        string language,
++        int topK = 3,
++        string? category = null,
++        CancellationToken ct = default);
++}
+\ No newline at end of file

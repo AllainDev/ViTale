@@ -1,0 +1,14 @@
+{
+  "pairs": [
+    {
+      "question": "What's the best time to visit Hanoi?",
+      "answer": "Hanoi's climate is subtropical, with four distinct seasons. The best time to visit is during spring (March to May) and autumn (September to November), when the weather is mild and comfortable. Summer can be hot and humid, while winter can be cool and foggy. Plan your visit accordingly to make the most of your trip. Don't forget to pack layers for cooler mornings and evenings, even in the spring and autumn.",
+      "keywords": "best time to visit, Hanoi weather, climate, spring, autumn, summer, winter"
+    },
+    {
+      "question": "How do I get around Hanoi?",
+      "answer": "Hanoi has a well-developed public transportation system, including buses and taxis. You can also hire a motorbike or take a Grab ride. If you prefer to walk, many attractions are within walking distance. Consider purchasing a Hanoi Tourist Card, which grants you free entry to many attractions and discounts on public transportation. Be mindful of traffic rules and pedestrian zones to ensure a safe and enjoyable experience.",
+      "keywords": "transportation, Hanoi, buses, taxis, motorbikes, Grab, walking, tourist card"
+    }
+  ]
+}

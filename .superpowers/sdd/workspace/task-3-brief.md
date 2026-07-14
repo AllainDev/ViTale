@@ -1,0 +1,62 @@
+### Task 3: KB generation script — topics.json
+
+**Files:**
+- Create: `backend/tools/GenerateHanoiKb/topics.json`
+
+- [ ] **Step 1: Create directory + topics file**
+
+```bash
+mkdir -p backend/tools/GenerateHanoiKb
+```
+
+Create `backend/tools/GenerateHanoiKb/topics.json`:
+
+```json
+[
+  { "category": "history", "topic": "Hoan Kiem Lake" },
+  { "category": "history", "topic": "Temple of Literature" },
+  { "category": "history", "topic": "Ho Chi Minh Mausoleum" },
+  { "category": "history", "topic": "Imperial Citadel of Thang Long" },
+  { "category": "history", "topic": "One Pillar Pagoda" },
+  { "category": "history", "topic": "Ly Thai To founding Thang Long" },
+  { "category": "culture", "topic": "36 streets of Old Quarter" },
+  { "category": "culture", "topic": "Vietnamese street food etiquette" },
+  { "category": "culture", "topic": "Tet Nguyen Dan traditions" },
+  { "category": "culture", "topic": "Water puppetry" },
+  { "category": "food", "topic": "Pho bo Ha Noi" },
+  { "category": "food", "topic": "Bun cha Hanoi" },
+  { "category": "food", "topic": "Banh mi Hanoi" },
+  { "category": "food", "topic": "Egg coffee ca phe trung" },
+  { "category": "food", "topic": "Bun thang" },
+  { "category": "food", "topic": "Cha ca La Vong" },
+  { "category": "food", "topic": "Best breakfast spots in Hanoi" },
+  { "category": "food", "topic": "Where locals eat not tourist traps" },
+  { "category": "practical_tips", "topic": "Getting around by taxi vs Grab" },
+  { "category": "practical_tips", "topic": "Currency exchange tips" },
+  { "category": "practical_tips", "topic": "SIM card and internet" },
+  { "category": "practical_tips", "topic": "Avoiding tourist scams" },
+  { "category": "transport", "topic": "Bus routes in Old Quarter" },
+  { "category": "transport", "topic": "Hanoi train station to Old Quarter" },
+  { "category": "transport", "topic": "Noi Bai airport to city center" },
+  { "category": "nightlife", "topic": "Ta Hien beer street" },
+  { "category": "nightlife", "topic": "Best rooftop bars" },
+  { "category": "nightlife", "topic": "Weekend night market" },
+  { "category": "neighborhood", "topic": "Hidden cafes West Lake" },
+  { "category": "neighborhood", "topic": "Long Bien bridge sunset" },
+  { "category": "neighborhood", "topic": "Train Street" },
+  { "category": "shopping", "topic": "Dong Xuan Market haggling" },
+  { "category": "shopping", "topic": "Best souvenirs to buy" },
+  { "category": "weather", "topic": "Best time to visit Hanoi" },
+  { "category": "weather", "topic": "What to pack by season" }
+]
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add backend/tools/GenerateHanoiKb/topics.json
+git commit -m "feat: add topics config for KB generation script"
+```
+
+---
+
