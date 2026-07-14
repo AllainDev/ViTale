@@ -56,10 +56,10 @@ export function GlassChatPanel() {
                                 shadow-lg shadow-mai-silk/30 mb-6">
                   <Sparkles className="w-7 h-7 text-white" />
                 </div>
-                <h1 className="font-serif text-2xl md:text-3xl font-bold text-stone-800 leading-snug max-w-xl mx-auto">
+                <h1 className="font-serif text-2xl md:text-3xl font-bold text-stone-800 dark:text-gray-100 leading-snug max-w-xl mx-auto transition-colors">
                   {welcomeMsg}
                 </h1>
-                <p className="mt-3 text-sm text-stone-500">
+                <p className="mt-3 text-sm text-stone-500 dark:text-gray-400 transition-colors">
                   {language === 'vi' ? 'Mình có thể kể chuyện lịch sử, gợi ý quán ăn, lên lịch trình...' : 'I can share history, recommend food, plan itineraries...'}
                 </p>
 
@@ -69,9 +69,15 @@ export function GlassChatPanel() {
                     <button
                       key={i}
                       onClick={() => sendMessage(q)}
-                      className="px-4 py-3 text-left text-sm text-stone-700 bg-white/70 backdrop-blur
-                                 border border-stone-200 rounded-2xl hover:border-mai-silk
-                                 hover:bg-white hover:shadow-md transition-all"
+                      className="px-4 py-3 text-left text-sm
+                                 text-stone-700 dark:text-gray-200
+                                 bg-white/70 dark:bg-white/10
+                                 backdrop-blur
+                                 border border-stone-200 dark:border-white/15
+                                 rounded-2xl
+                                 hover:border-[var(--color-mai-silk)]
+                                 hover:bg-white dark:hover:bg-white/20
+                                 hover:shadow-md transition-all"
                     >
                       {q}
                     </button>
@@ -89,7 +95,7 @@ export function GlassChatPanel() {
                   </div>
                 ))}
                 {isStreaming && (
-                  <div className="flex items-center gap-2 text-stone-500 text-sm pl-1">
+                  <div className="flex items-center gap-2 text-stone-500 dark:text-gray-400 text-sm pl-1 transition-colors">
                     <div className="flex gap-1">
                       <span className="w-2 h-2 bg-mai-silk rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <span className="w-2 h-2 bg-mai-silk rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />

@@ -43,9 +43,10 @@ export function SuggestionChips({ lastMsg }: { lastMsg: ChatMessage }) {
           key={i}
           onClick={() => sendMessage(s)}
           className="px-3 py-1.5 text-xs
-                     bg-mai-silk/10 hover:bg-mai-silk/20
-                     border border-mai-silk/30 hover:border-mai-silk/60
-                     rounded-full text-mai-night/90
+                     bg-[var(--color-mai-silk)]/10 hover:bg-[var(--color-mai-silk)]/20
+                     border border-[var(--color-mai-silk)]/30 hover:border-[var(--color-mai-silk)]/60
+                     rounded-full
+                     text-stone-700 dark:text-gray-200
                      transition-colors"
         >
           {s}

@@ -4,6 +4,7 @@ import './globals.css';
 import { AuthProvider } from '../context/AuthContext';
 import { LanguageProvider } from '../context/LanguageContext';
 import { ChatProvider } from '../context/ChatContext';
+import { ThemeProvider } from '../context/ThemeContext';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -54,12 +55,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body style={{ margin: 0, padding: 0, background: '#f5f3ef' }}>
+      <body style={{ margin: 0, padding: 0, background: 'var(--body-bg, #f5f3ef)', color: 'var(--body-text, #1c1917)' }}>
         <LanguageProvider>
           <AuthProvider>
-            <ChatProvider>
-              {children}
-            </ChatProvider>
+            <ThemeProvider>
+              <ChatProvider>
+                {children}
+              </ChatProvider>
+            </ThemeProvider>
           </AuthProvider>
         </LanguageProvider>
       </body>
