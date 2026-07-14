@@ -3,6 +3,7 @@ import { Inter, Noto_Serif } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '../context/AuthContext';
 import { LanguageProvider } from '../context/LanguageContext';
+import { ChatProvider } from '../context/ChatContext';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -56,7 +57,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body style={{ margin: 0, padding: 0, background: '#f5f3ef' }}>
         <LanguageProvider>
           <AuthProvider>
-            {children}
+            <ChatProvider>
+              {children}
+            </ChatProvider>
           </AuthProvider>
         </LanguageProvider>
       </body>
