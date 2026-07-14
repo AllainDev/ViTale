@@ -61,7 +61,7 @@ export default function QRScanner({ onScanSuccess, onClose }: QRScannerProps) {
       } catch (err) {
         if (mounted) {
           console.error("Failed to start QR scanner", err);
-          setErrorMsg("Trình duyệt đang chặn quyền Camera. Vui lòng bấm vào biểu tượng ổ khóa 🔒 trên thanh địa chỉ, bật quyền Camera và tải lại trang.");
+          setErrorMsg("Trình duyệt đang chặn quyền Camera. Vui lòng bấm vào biểu tượng ổ khóa 🔒 trên thanh địa chỉ, bật quyền Camera và tải lại trang (hoặc sử dụng HTTPS).");
         }
       }
     };

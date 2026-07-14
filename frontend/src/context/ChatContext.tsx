@@ -72,8 +72,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
     localStorage.setItem(STORAGE_LANG, lang);
-    // Reset conversation on language switch
-    setMessages([]);
+    // Only reset session so next message is sent in the new language.
+    // Messages remain visible so the user doesn't lose the conversation.
     setSessionId(null);
     localStorage.removeItem(STORAGE_SESSION);
   }, []);
@@ -126,8 +126,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const assistantMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: data.content,
-        tags: data.tags,
+        content: data.message ?? data.content ?? '',
+        tags: data.action ? data.action.split(',') : (data.tags ?? []),
         toolCalls: data.toolCalls,
         timestamp: Date.now(),
       };

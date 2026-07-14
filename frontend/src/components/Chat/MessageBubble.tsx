@@ -11,7 +11,7 @@ const TAG_EMOJI: Record<string, string> = {
  * No external deps (react-markdown would be ~50KB).
  * Supports: **bold**, _italic_, `code`, # / ## / ### headers, - / * bullets, 1. numbered lists, plain paragraphs.
  */
-function renderMarkdown(text: string): React.ReactNode[] {
+function renderMarkdown(text: string, isUserBubble = false): React.ReactNode[] {
   const lines = text.split('\n');
   const blocks: React.ReactNode[] = [];
   let i = 0;
@@ -33,7 +33,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
         tableLines.push(lines[i]);
         i++;
       }
-      blocks.push(<MarkdownTable key={key++} lines={tableLines} />);
+      blocks.push(<MarkdownTable key={key++} lines={tableLines} isUserBubble={isUserBubble} />);
       continue;
     }
 
@@ -46,7 +46,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
         level === 1 ? 'text-base font-bold mt-2 mb-1' :
         level === 2 ? 'text-sm font-bold mt-2 mb-0.5' :
                       'text-sm font-semibold mt-1.5 mb-0.5';
-      blocks.push(<div key={key++} className={className}>{renderInline(content)}</div>);
+      blocks.push(<div key={key++} className={className}>{renderInline(content, isUserBubble)}</div>);
       i++;
       continue;
     }
@@ -62,8 +62,8 @@ function renderMarkdown(text: string): React.ReactNode[] {
         <ul key={key++} className="my-1.5 ml-1 space-y-1 list-none">
           {items.map((item, j) => (
             <li key={j} className="flex gap-2 text-sm leading-relaxed">
-              <span className="text-[var(--color-mai-silk)] shrink-0 mt-0.5">•</span>
-              <span className="flex-1">{renderInline(item)}</span>
+              <span className={`shrink-0 mt-0.5 ${isUserBubble ? 'text-white/70' : 'text-mai-silk'}`}>•</span>
+              <span className="flex-1">{renderInline(item, isUserBubble)}</span>
             </li>
           ))}
         </ul>
@@ -82,8 +82,8 @@ function renderMarkdown(text: string): React.ReactNode[] {
         <ol key={key++} className="my-1.5 ml-1 space-y-1 list-none counter-reset-[item]">
           {items.map((item, j) => (
             <li key={j} className="flex gap-2 text-sm leading-relaxed">
-              <span className="text-[var(--color-mai-silk)] font-bold shrink-0">{j + 1}.</span>
-              <span className="flex-1">{renderInline(item)}</span>
+              <span className={`font-bold shrink-0 ${isUserBubble ? 'text-white/70' : 'text-mai-silk'}`}>{j + 1}.</span>
+              <span className="flex-1">{renderInline(item, isUserBubble)}</span>
             </li>
           ))}
         </ol>
@@ -105,7 +105,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
       <p key={key++} className="text-sm leading-relaxed my-1.5">
         {paraLines.map((pl, j) => (
           <span key={j}>
-            {renderInline(pl)}
+            {renderInline(pl, isUserBubble)}
             {j < paraLines.length - 1 && <br />}
           </span>
         ))}
@@ -117,7 +117,7 @@ function renderMarkdown(text: string): React.ReactNode[] {
 }
 
 /** Render inline markdown: **bold**, _italic_, `code` */
-function renderInline(text: string): React.ReactNode {
+function renderInline(text: string, isUserBubble = false): React.ReactNode {
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
@@ -131,9 +131,15 @@ function renderInline(text: string): React.ReactNode {
     if (m.index > lastIndex) {
       parts.push(remaining.slice(lastIndex, m.index));
     }
-    if (m[1]) parts.push(<strong key={key++} className="font-bold text-stone-900">{m[2]}</strong>);
+    if (m[1]) parts.push(<strong key={key++} className="font-bold">{m[2]}</strong>);
     else if (m[3]) parts.push(<em key={key++} className="italic">{m[4]}</em>);
-    else if (m[5]) parts.push(<code key={key++} className="px-1 py-0.5 rounded bg-stone-100 text-[var(--color-mai-silk)] font-mono text-xs">{m[5]}</code>);
+    else if (m[5]) parts.push(
+      <code key={key++} className={`px-1 py-0.5 rounded font-mono text-xs ${
+        isUserBubble
+          ? 'bg-white/20 text-white'
+          : 'bg-stone-100 text-mai-silk'
+      }`}>{m[6]}</code>
+    );
     lastIndex = m.index + m[0].length;
   }
   if (lastIndex < remaining.length) {
@@ -143,7 +149,7 @@ function renderInline(text: string): React.ReactNode {
 }
 
 /** Render markdown table (GFM style) */
-function MarkdownTable({ lines }: { lines: string[] }) {
+function MarkdownTable({ lines, isUserBubble = false }: { lines: string[]; isUserBubble?: boolean }) {
   if (lines.length < 2) {
     return <p className="text-sm">{lines.join('\n')}</p>;
   }
@@ -151,13 +157,13 @@ function MarkdownTable({ lines }: { lines: string[] }) {
   const bodyRows = lines.slice(2).map(parseRow); // skip separator (line 1)
 
   return (
-    <div className="my-2 overflow-x-auto rounded-lg border border-[var(--color-mai-silk)]/20 bg-stone-50/50">
+    <div className="my-2 overflow-x-auto rounded-lg border border-mai-silk/20 bg-stone-50/50">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="bg-[var(--color-mai-silk)]/10 border-b border-[var(--color-mai-silk)]/30">
+          <tr className="bg-mai-silk/10 border-b border-mai-silk/30">
             {headerCells.map((cell, j) => (
               <th key={j} className="text-left px-3 py-2 font-semibold text-stone-800">
-                {renderInline(cell)}
+                {renderInline(cell, isUserBubble)}
               </th>
             ))}
           </tr>
@@ -167,7 +173,7 @@ function MarkdownTable({ lines }: { lines: string[] }) {
             <tr key={ri} className="border-b border-stone-200/60 last:border-b-0">
               {row.map((cell, j) => (
                 <td key={j} className="px-3 py-2 align-top text-stone-700">
-                  {renderInline(cell)}
+                  {renderInline(cell, isUserBubble)}
                 </td>
               ))}
             </tr>
@@ -190,8 +196,9 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   const isStreaming = message.role === 'assistant' && !message.content;
 
   // Strip [WAVE], [SMILE]... action tags from display content
-  const displayContent = message.content.replace(/\[(WAVE|SMILE|NOD|POINT|BOW|DANCE)\]/g, '');
-  const tagsInContent = (message.content.match(/\[(WAVE|SMILE|NOD|POINT|BOW|DANCE)\]/g) || [])
+  const contentStr = message.content || '';
+  const displayContent = contentStr.replace(/\[(WAVE|SMILE|NOD|POINT|BOW|DANCE)\]/g, '');
+  const tagsInContent = (contentStr.match(/\[(WAVE|SMILE|NOD|POINT|BOW|DANCE)\]/g) || [])
     .map((t) => t.replace(/[\[\]]/g, ''));
 
   if (isSystem) {
@@ -205,16 +212,22 @@ export function MessageBubble({ message }: { message: ChatMessage }) {
   }
 
   return (
-    <div className={`flex animate-slide-up ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[85%] px-4 py-3 ${
-        isUser
-          ? 'bg-[var(--color-mai-silk)] text-white rounded-2xl rounded-br-sm shadow-md'
-          : `bg-white text-stone-800 border border-[var(--color-mai-silk)]/30 shadow-md
-             rounded-2xl rounded-bl-sm
-             ${isStreaming ? 'animate-pulse-glow' : ''}`
-      }`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`max-w-[85%] px-4 py-3 animate-slide-up ${
+          isUser
+            ? 'text-white rounded-2xl rounded-br-sm shadow-md'
+            : `bg-white text-stone-800 shadow-md rounded-2xl rounded-bl-sm border ${
+                isStreaming ? 'animate-pulse-glow' : ''
+              }`
+        }`}
+        style={isUser
+          ? { backgroundColor: '#D75F4E' }
+          : { borderColor: 'rgba(215, 95, 78, 0.3)' }
+        }
+      >
         <div className="leading-relaxed">
-          {renderMarkdown(displayContent.trim())}
+          {renderMarkdown(displayContent.trim(), isUser)}
         </div>
 
         {!isUser && tagsInContent.length > 0 && (

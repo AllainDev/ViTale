@@ -1,10 +1,13 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Allow phone to access dev server
+  allowedDevOrigins: ['192.168.1.3'],
   // Allow images from API server
   images: {
     remotePatterns: [
       { protocol: 'http',  hostname: 'localhost' },
+      { protocol: 'http',  hostname: '192.168.1.3' },
       { protocol: 'https', hostname: '*.r2.cloudflarestorage.com' },
       { protocol: 'https', hostname: '*.vitale.app' },
     ],

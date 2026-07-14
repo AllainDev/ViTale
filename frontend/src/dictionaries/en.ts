@@ -49,8 +49,9 @@ export const en = {
     authenticating: "Authenticating...",
     undiscovered: "Undiscovered",
     visited: "Visited",
-    dollBonusReady: "Doll Bonus: Ready (+100 XP)",
-    dollBonusClaimed: "Doll Reward Claimed",
+    viewMap: "View Map",
+    openGoogleMaps: "Open Google Maps",
+    achievementsTab: "Achievements",
     retry: "Retry",
     connectionError: "Connection Error"
   }

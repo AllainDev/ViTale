@@ -49,8 +49,9 @@ export const vi = {
     authenticating: "Đang xác thực...",
     undiscovered: "Chưa khám phá",
     visited: "Đã ghé thăm",
-    dollBonusReady: "Doll Bonus: Sẵn sàng (+100 XP)",
-    dollBonusClaimed: "Đã nhận thưởng Búp bê",
+    viewMap: "Xem bản đồ",
+    openGoogleMaps: "Mở Google Maps",
+    achievementsTab: "Thành tựu",
     retry: "Thử lại",
     connectionError: "Lỗi kết nối"
   }

@@ -418,7 +418,7 @@ export default function Canvas({
       )}
 
       {/* VITALE HEADER NAVBAR */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-stone-200/60 py-3.5 px-6 sticky top-0 z-30 flex flex-col md:flex-row justify-between items-center gap-3 transition-all">
+      <header className="bg-white/90 backdrop-blur-md border-b border-stone-200/60 py-3 px-3 md:py-3.5 md:px-6 sticky top-0 z-30 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-3 transition-all">
         <div className="flex justify-between items-center w-full md:flex-1 md:justify-start">
           <button 
             onClick={() => setActiveScreen("home")}
@@ -509,7 +509,7 @@ export default function Canvas({
         </div>
 
         {/* Navigation list: Responsive scaling */}
-        <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 justify-start md:justify-center px-2 md:px-0 scrollbar-hide">
+        <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 justify-start md:justify-center px-1.5 md:px-0 scrollbar-hide">
           {[
             { id: "home", label: t.navHome },
             { id: "collections", label: t.navCollections },
@@ -520,7 +520,7 @@ export default function Canvas({
             <button
               key={item.id}
               onClick={() => setActiveScreen(item.id as ActiveScreen)}
-              className="text-[10px] md:text-xs tracking-wider uppercase font-bold py-1 px-2 md:px-3 transition-all relative shrink-0 flex items-center gap-1"
+              className="text-[10px] md:text-xs tracking-normal md:tracking-wider uppercase font-bold py-1.5 px-2 md:px-3 transition-all relative shrink-0 flex items-center gap-1 whitespace-nowrap"
               style={{
                 color: activeScreen === item.id ? brandTheme.secondaryColor : "#424843"
               }}

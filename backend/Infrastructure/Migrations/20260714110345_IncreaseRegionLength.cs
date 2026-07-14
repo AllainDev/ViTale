@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -14,15 +14,13 @@ namespace Infrastructure.Migrations
                 name: "FK_characters_products_ProductId",
                 table: "characters");
 
-            migrationBuilder.RenameColumn(
+            migrationBuilder.DropColumn(
                 name: "ProductId",
-                table: "characters",
-                newName: "product_id");
+                table: "characters");
 
-            migrationBuilder.RenameIndex(
+            migrationBuilder.DropIndex(
                 name: "IX_characters_ProductId",
-                table: "characters",
-                newName: "IX_characters_product_id");
+                table: "characters");
 
             migrationBuilder.AlterColumn<string>(
                 name: "region",
@@ -53,32 +51,21 @@ namespace Infrastructure.Migrations
                 oldClrType: typeof(string),
                 oldType: "character varying(10)",
                 oldMaxLength: 10);
-
-            migrationBuilder.AddForeignKey(
-                name: "FK_characters_products_product_id",
-                table: "characters",
-                column: "product_id",
-                principalTable: "products",
-                principalColumn: "id",
-                onDelete: ReferentialAction.SetNull);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_characters_products_product_id",
-                table: "characters");
-
-            migrationBuilder.RenameColumn(
-                name: "product_id",
+            migrationBuilder.AddColumn<Guid>(
+                name: "ProductId",
                 table: "characters",
-                newName: "ProductId");
+                type: "uuid",
+                nullable: true);
 
-            migrationBuilder.RenameIndex(
-                name: "IX_characters_product_id",
+            migrationBuilder.CreateIndex(
+                name: "IX_characters_ProductId",
                 table: "characters",
-                newName: "IX_characters_ProductId");
+                column: "ProductId");
 
             migrationBuilder.AlterColumn<string>(
                 name: "region",

@@ -5,8 +5,9 @@ using System.Text.Json;
 namespace Infrastructure.Persistence;
 
 /// <summary>
-/// Seeds initial data for development and production — 15 Hanoi checkpoints, 1 character,
-/// 3 story chapters, 5 badges, and 10 partner businesses with vouchers.
+/// Seeds initial data for development and production — Hanoi (15), Ho Chi Minh (8),
+/// Da Nang (8) checkpoints, 1 character, 3 story chapters, 5 badges, and 10 partner
+/// businesses with vouchers.
 /// </summary>
 public static class DatabaseSeeder
 {
@@ -19,6 +20,16 @@ public static class DatabaseSeeder
     // Checkpoint IDs for 15 Hanoi locations
     private static readonly Guid[] CheckpointIds = Enumerable.Range(1, 15)
         .Select(i => Guid.Parse($"33333333-0000-0000-0000-{i:D12}"))
+        .ToArray();
+
+    // Checkpoint IDs for 8 Ho Chi Minh City locations (prefix: 66666666)
+    private static readonly Guid[] HcmCheckpointIds = Enumerable.Range(1, 8)
+        .Select(i => Guid.Parse($"66666666-0000-0000-0000-{i:D12}"))
+        .ToArray();
+
+    // Checkpoint IDs for 8 Da Nang locations (prefix: 77777777)
+    private static readonly Guid[] DaNangCheckpointIds = Enumerable.Range(1, 8)
+        .Select(i => Guid.Parse($"77777777-0000-0000-0000-{i:D12}"))
         .ToArray();
 
     // ── Pre-defined GUIDs for dev seed (idempotent across re-runs) ─────────────
@@ -241,7 +252,64 @@ public static class DatabaseSeeder
                 """,
                 id, name, lat, lon, radius, storyId, regionName);
         }
+
+        // ── Hồ Chí Minh City checkpoints ─────────────────────────────────────
+        var hcmCheckpoints = new[]
+        {
+            (HcmCheckpointIds[0], "Bến Thành Market",          10.7725m, 106.6980m, 150, "Hồ Chí Minh"),
+            (HcmCheckpointIds[1], "Reunification Palace",      10.7769m, 106.6956m, 120, "Hồ Chí Minh"),
+            (HcmCheckpointIds[2], "War Remnants Museum",       10.7797m, 106.6924m, 100, "Hồ Chí Minh"),
+            (HcmCheckpointIds[3], "Notre-Dame Cathedral",      10.7797m, 106.6990m, 100, "Hồ Chí Minh"),
+            (HcmCheckpointIds[4], "Jade Emperor Pagoda",       10.7902m, 106.6902m, 80,  "Hồ Chí Minh"),
+            (HcmCheckpointIds[5], "Bui Vien Walking Street",   10.7672m, 106.6921m, 200, "Hồ Chí Minh"),
+            (HcmCheckpointIds[6], "Bitexco Financial Tower",   10.7717m, 106.7040m, 100, "Hồ Chí Minh"),
+            (HcmCheckpointIds[7], "Cu Chi Tunnels",            11.1422m, 106.4629m, 300, "Hồ Chí Minh"),
+        };
+
+        foreach (var (id, name, lat, lon, radius, regionName) in hcmCheckpoints)
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                INSERT INTO checkpoints (id, name, latitude, longitude, radius, story_chapter_id, region, is_active, created_at)
+                VALUES ({0}, {1}, {2}, {3}, {4}, NULL, {5}, true, NOW())
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    latitude = EXCLUDED.latitude,
+                    longitude = EXCLUDED.longitude,
+                    radius = EXCLUDED.radius,
+                    region = EXCLUDED.region
+                """,
+                id, name, lat, lon, radius, regionName);
+        }
+
+        // ── Đà Nẵng checkpoints ───────────────────────────────────────────────
+        var daNangCheckpoints = new[]
+        {
+            (DaNangCheckpointIds[0], "Dragon Bridge",          16.0610m, 108.2275m, 150, "Đà Nẵng"),
+            (DaNangCheckpointIds[1], "Marble Mountains",       15.9731m, 108.2620m, 200, "Đà Nẵng"),
+            (DaNangCheckpointIds[2], "My Khe Beach",           16.0539m, 108.2474m, 300, "Đà Nẵng"),
+            (DaNangCheckpointIds[3], "Han Market",             16.0657m, 108.2232m, 100, "Đà Nẵng"),
+            (DaNangCheckpointIds[4], "Museum of Cham Sculpture",16.0620m, 108.2200m, 80,  "Đà Nẵng"),
+            (DaNangCheckpointIds[5], "Ba Na Hills",            15.9972m, 107.9891m, 500, "Đà Nẵng"),
+            (DaNangCheckpointIds[6], "Son Tra Peninsula",      16.1048m, 108.2742m, 400, "Đà Nẵng"),
+            (DaNangCheckpointIds[7], "Da Nang Cathedral",      16.0687m, 108.2204m, 80,  "Đà Nẵng"),
+        };
+
+        foreach (var (id, name, lat, lon, radius, regionName) in daNangCheckpoints)
+        {
+            await db.Database.ExecuteSqlRawAsync("""
+                INSERT INTO checkpoints (id, name, latitude, longitude, radius, story_chapter_id, region, is_active, created_at)
+                VALUES ({0}, {1}, {2}, {3}, {4}, NULL, {5}, true, NOW())
+                ON CONFLICT (id) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    latitude = EXCLUDED.latitude,
+                    longitude = EXCLUDED.longitude,
+                    radius = EXCLUDED.radius,
+                    region = EXCLUDED.region
+                """,
+                id, name, lat, lon, radius, regionName);
+        }
     }
+
 
     private static async Task SeedBadgesAsync(ApplicationDbContext db)
     {

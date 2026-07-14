@@ -14,8 +14,8 @@ export function LanguageToggle() {
         onClick={() => setLanguage('vi')}
         className={`${baseBtn} ${
           language === 'vi'
-            ? 'bg-[var(--color-mai-silk)] text-[var(--color-mai-bone)]'
-            : 'text-[var(--color-mai-bone)]/60 hover:text-[var(--color-mai-bone)] hover:bg-white/5'
+            ? 'bg-mai-silk text-mai-bone'
+            : 'text-mai-bone/60 hover:text-mai-bone hover:bg-white/5'
         }`}
         aria-pressed={language === 'vi'}
       >
@@ -25,8 +25,8 @@ export function LanguageToggle() {
         onClick={() => setLanguage('en')}
         className={`${baseBtn} ${
           language === 'en'
-            ? 'bg-[var(--color-mai-silk)] text-[var(--color-mai-bone)]'
-            : 'text-[var(--color-mai-bone)]/60 hover:text-[var(--color-mai-bone)] hover:bg-white/5'
+            ? 'bg-mai-silk text-mai-bone'
+            : 'text-mai-bone/60 hover:text-mai-bone hover:bg-white/5'
         }`}
         aria-pressed={language === 'en'}
       >

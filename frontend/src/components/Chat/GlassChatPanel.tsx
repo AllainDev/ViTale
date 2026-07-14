@@ -16,7 +16,7 @@ export function GlassChatPanel() {
     if (scrollRef.current && typeof scrollRef.current.scrollTo === 'function') {
       scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
     }
-  }, [messages.length, isStreaming]);
+  }, [messages, isStreaming]);
 
   const welcomeMsg = language === 'vi'
     ? 'Xin chào! Mình là Mai — hướng dẫn viên Hà Nội của bạn. Hỏi mình bất cứ điều gì về thủ đô nhé!'
@@ -52,8 +52,8 @@ export function GlassChatPanel() {
               <div className="text-center pt-12">
                 {/* Sparkle icon */}
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full
-                                bg-gradient-to-br from-[var(--color-mai-silk)] to-[var(--color-mai-lotus)]
-                                shadow-lg shadow-[var(--color-mai-silk)]/30 mb-6">
+                                bg-gradient-to-br from-mai-silk to-mai-lotus
+                                shadow-lg shadow-mai-silk/30 mb-6">
                   <Sparkles className="w-7 h-7 text-white" />
                 </div>
                 <h1 className="font-serif text-2xl md:text-3xl font-bold text-stone-800 leading-snug max-w-xl mx-auto">
@@ -70,7 +70,7 @@ export function GlassChatPanel() {
                       key={i}
                       onClick={() => sendMessage(q)}
                       className="px-4 py-3 text-left text-sm text-stone-700 bg-white/70 backdrop-blur
-                                 border border-stone-200 rounded-2xl hover:border-[var(--color-mai-silk)]
+                                 border border-stone-200 rounded-2xl hover:border-mai-silk
                                  hover:bg-white hover:shadow-md transition-all"
                     >
                       {q}
@@ -91,9 +91,9 @@ export function GlassChatPanel() {
                 {isStreaming && (
                   <div className="flex items-center gap-2 text-stone-500 text-sm pl-1">
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-[var(--color-mai-silk)] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-[var(--color-mai-silk)] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-[var(--color-mai-silk)] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <span className="w-2 h-2 bg-mai-silk rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-mai-silk rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-mai-silk rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                     {language === 'vi' ? 'Mai đang suy nghĩ...' : 'Mai is thinking...'}
                   </div>

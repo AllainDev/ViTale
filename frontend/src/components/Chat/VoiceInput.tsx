@@ -22,7 +22,7 @@ export function VoiceInput() {
                         bg-white/85 backdrop-blur-xl
                         border border-stone-200 rounded-3xl
                         shadow-[0_4px_24px_rgba(0,0,0,0.08)]
-                        focus-within:border-[var(--color-mai-silk)]/60
+                        focus-within:border-mai-silk/60
                         focus-within:shadow-[0_4px_32px_rgba(215,95,78,0.15)]
                         transition-all min-h-[56px]">
 
@@ -32,7 +32,7 @@ export function VoiceInput() {
             aria-label={language === 'vi' ? 'Bật vị trí' : 'Enable location'}
             className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
               gps
-                ? 'bg-[var(--color-mai-leaf)]/20 text-[var(--color-mai-leaf)]'
+                ? 'bg-mai-leaf/20 text-mai-leaf'
                 : 'text-stone-400 hover:text-stone-700 hover:bg-stone-100'
             }`}
           >
@@ -72,8 +72,8 @@ export function VoiceInput() {
             disabled={!text.trim() || isStreaming}
             aria-label={language === 'vi' ? 'Gửi' : 'Send'}
             className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center
-                       bg-[var(--color-mai-silk)] text-white
-                       hover:bg-[var(--color-mai-silk)]/90
+                       bg-mai-silk text-white
+                       hover:bg-mai-silk/90
                        disabled:bg-stone-200 disabled:text-stone-400
                        disabled:cursor-not-allowed transition-all"
           >
@@ -88,7 +88,7 @@ export function VoiceInput() {
           <button
             type="button"
             onClick={clearChat}
-            className="hover:text-[var(--color-mai-silk)] underline"
+            className="hover:text-mai-silk underline"
           >
             {language === 'vi' ? '🗑 Xoá' : '🗑 Clear'}
           </button>
