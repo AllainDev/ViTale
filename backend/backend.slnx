@@ -2,6 +2,7 @@
   <Folder Name="/tools/">
     <Project Path="tools/GenerateHanoiKb/GenerateHanoiKb.csproj" />
   </Folder>
+  <Project Path="Application.Tests/Application.Tests.csproj" />
   <Project Path="Application/Application.csproj" />
   <Project Path="Domain.Tests/Domain.Tests.csproj" />
   <Project Path="Domain/Domain.csproj" />
