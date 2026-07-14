@@ -2,10 +2,11 @@ import React from 'react';
 
 export default function GoogleLoginButton({ label }: { label: string }) {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+  const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
   
   // Use a dynamic timestamp to bust browser cache for the 302 redirect
   const timestamp = typeof window !== 'undefined' ? Date.now() : '';
-  const loginUrl = `${apiUrl}/auth/login/Google?t=${timestamp}`;
+  const loginUrl = `${baseUrl}/auth/login/Google?t=${timestamp}`;
 
   return (
     <a href={loginUrl} className="flex items-center justify-center gap-2 py-2.5 border border-stone-200 rounded-full hover:bg-stone-50 transition-colors w-full">

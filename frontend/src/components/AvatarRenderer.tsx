@@ -149,6 +149,7 @@ function LoadingFallback() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 interface AvatarRendererProps {
+  cameraPosition?: [number, number, number];
   lipsSyncEngine: LipsSyncEngine | null;
   animationTag: 'idle' | 'talking';
   onAvatarLoaded?: (scene: THREE.Object3D) => void;
@@ -162,7 +163,7 @@ export default function AvatarRenderer({
   onAvatarLoaded,
   isPaused = false,
   modelUrl
-}: AvatarRendererProps) {
+, cameraPosition }: AvatarRendererProps) {
   const [modelError, setModelError] = useState<string | null>(null);
   const [webglSupported, setWebglSupported] = useState(true);
   const [retryKey, setRetryKey] = useState(0);
@@ -215,7 +216,7 @@ export default function AvatarRenderer({
 
       <Canvas
         key={retryKey}
-        camera={{ position: [0, 0, 3], fov: 50, near: 0.1, far: 100 }}
+        camera={{ position: cameraPosition || [0, 0, 3], fov: 50, near: 0.1, far: 100 }}
         frameloop={isPaused ? 'never' : 'always'}
         style={{ width: '100%', height: '100%' }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
@@ -271,3 +272,5 @@ export default function AvatarRenderer({
 if (typeof window !== 'undefined') {
   useGLTF.preload(AVATAR_MODEL_URL, true);
 }
+
+

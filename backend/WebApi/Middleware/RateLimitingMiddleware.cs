@@ -21,9 +21,15 @@ public class RateLimitingMiddleware
         ("/api/v1/checkins",                 false, 10,  60),
         ("/api/v1/vouchers/claim",           false, 5,   60),
         ("/api/v1/auth/link-account",        true,  10,  60),
+        ("/api/v1/auth/login",               true,  5,   60),
+        ("/api/v1/auth/profile",             false, 300, 60),
+        ("/api/v1/auth/logout",              true,  30,  60),
+        ("/api/v1/gamification/status",      false, 200, 60),
+        ("/api/v1/gamification/checkpoints", false, 200, 60),
+        ("/api/v1/admin/login",              true,  5,   60),
     ];
 
-    private const int DefaultLimit = 100;
+    private const int DefaultLimit = 5000;
     private const int DefaultWindowSeconds = 60;
 
     public RateLimitingMiddleware(RequestDelegate next, IMemoryCache cache, ILogger<RateLimitingMiddleware> logger)
@@ -79,14 +85,14 @@ public class RateLimitingMiddleware
             key = $"rl:ip:{GetClientIp(context)}:default";
         }
 
-        var count = _cache.GetOrCreate(key, entry =>
+        var cacheEntry = _cache.GetOrCreate(key, entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(window);
-            return 0;
+            return new { Count = 0, Expires = DateTimeOffset.UtcNow.AddSeconds(window) };
         });
 
-        count++;
-        _cache.Set(key, count, TimeSpan.FromSeconds(window));
+        int count = cacheEntry.Count + 1;
+        _cache.Set(key, new { Count = count, Expires = cacheEntry.Expires }, cacheEntry.Expires);
 
         if (count > limit)
         {

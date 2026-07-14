@@ -1,10 +1,12 @@
+using Application.Interfaces.Repositories;
 using Application.Interfaces.Services;
 using Microsoft.AspNetCore.Mvc;
 using Domain.Common;
 using WebApi.Middleware;
-using Infrastructure.Persistence;
+using Application.Interfaces.Persistence;
 using Application.DTOs;
 using Domain.Entities;
+using Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 
@@ -18,31 +20,34 @@ public class AdminController : ControllerBase
     private readonly IStorageService _storage;
     private readonly ISecureRandomService _random;
     private readonly ILogger<AdminController> _logger;
-    private readonly ApplicationDbContext _db;
+    private readonly IUnitOfWork _uow;
     private readonly IAuthenticationService _auth;
     private readonly ITokenService _tokenService;
+    private readonly IProductRepository _products;
 
     public AdminController(
         IStorageService storage,
         ISecureRandomService random,
         ILogger<AdminController> logger,
-        ApplicationDbContext db,
+        IUnitOfWork uow,
         IAuthenticationService auth,
-        ITokenService tokenService)
+        ITokenService tokenService,
+        IProductRepository products)
     {
         _storage = storage;
         _random = random;
         _logger = logger;
-        _db = db;
+        _uow = uow;
         _auth = auth;
         _tokenService = tokenService;
+        _products = products;
     }
 
     [HttpPost("login")]
     [AllowAnonymous]
     public async Task<IActionResult> Login([FromBody] AdminLoginRequest req, CancellationToken ct)
     {
-        var admin = await _db.AdminUsers.FirstOrDefaultAsync(x => x.Username == req.Username, ct);
+        var admin = await _uow.AdminUsers.Query().FirstOrDefaultAsync(x => x.Username == req.Username, ct);
         if (admin == null || !BCrypt.Net.BCrypt.Verify(req.Password, admin.PasswordHash))
         {
             return Unauthorized(new { message = "Invalid username or password" });
@@ -130,12 +135,12 @@ public class AdminController : ControllerBase
         return Ok(new { presignedUrl, publicUrl, key });
     }
 
-    // ── CollectionItem CRUD ─────────────────────────────────────
-    [HttpGet("collections")]
-    public async Task<IActionResult> GetCollections(
+    // ── Product CRUD (covers all product types: Doll, PassportCover, etc.) ──────
+    [HttpGet("products")]
+    public async Task<IActionResult> GetProducts(
         [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
     {
-        var query = _db.CollectionItems.Where(x => !x.IsDeleted);
+        var query = _uow.Products.Query().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -144,58 +149,85 @@ public class AdminController : ControllerBase
         }
 
         var total = await query.CountAsync(ct);
-        var items = await query.OrderByDescending(x => x.Id)
-                               .Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+        var items = await query
+            .OrderByDescending(x => x.IsHighlight)
+            .ThenByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(p => new
+            {
+                p.Id, p.Name, p.Region, p.Description, p.Material, p.Price,
+                p.ImageUrl, p.IsHighlight, p.IsDeleted, p.Sku,
+                ProductType = p.ProductType.ToString(),
+                p.CreatedAt
+            })
+            .ToListAsync(ct);
 
         return Ok(new { data = items, total, page, pageSize });
     }
 
-    [HttpPost("collections")]
-    public async Task<IActionResult> CreateCollectionItem([FromBody] CreateCollectionItemRequest req, CancellationToken ct)
+    /// <summary>GET /api/v1/admin/products/doll-options — list Doll products for Character linking dropdown.</summary>
+    [HttpGet("products/doll-options")]
+    public async Task<IActionResult> GetDollOptions(CancellationToken ct)
     {
-        var item = new CollectionItem
-        {
-            Id = Guid.NewGuid(),
-            Name = req.Name,
-            Region = req.Region,
-            Description = req.Description,
-            Material = req.Material,
-            Price = req.Price,
-            ImageUrl = req.ImageUrl,
-            IsHighlight = req.IsHighlight,
-            IsDeleted = false
-        };
-        _db.CollectionItems.Add(item);
-        await _db.SaveChangesAsync(ct);
-        return Ok(item);
+        var dolls = await _uow.Products.Query()
+            .AsNoTracking()
+            .Where(p => p.ProductType == ProductType.Doll && !p.IsDeleted)
+            .OrderBy(p => p.Region).ThenBy(p => p.Name)
+            .Select(p => new { p.Id, p.Name, p.Sku, p.Region })
+            .ToListAsync(ct);
+
+        return Ok(new { dolls });
     }
 
-    [HttpPut("collections/{id}")]
-    public async Task<IActionResult> UpdateCollectionItem(Guid id, [FromBody] UpdateCollectionItemRequest req, CancellationToken ct)
+    [HttpPost("products")]
+    public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest req, CancellationToken ct)
     {
-        var item = await _db.CollectionItems.FindAsync([id], ct);
-        if (item == null) return NotFound();
+        if (!Enum.TryParse<ProductType>(req.ProductType, true, out var productType))
+            return BadRequest(new { message = $"Invalid productType: '{req.ProductType}'. Valid values: {string.Join(", ", Enum.GetNames<ProductType>())}" });
 
-        item.Name = req.Name;
-        item.Region = req.Region;
-        item.Description = req.Description;
-        item.Material = req.Material;
-        item.Price = req.Price;
-        item.ImageUrl = req.ImageUrl;
-        item.IsHighlight = req.IsHighlight;
+        var product = Product.Create(
+            req.Name, req.Region, productType,
+            sku: req.Sku,
+            imageUrl: req.ImageUrl,
+            description: req.Description,
+            material: req.Material,
+            price: req.Price,
+            isHighlight: req.IsHighlight);
 
-        await _db.SaveChangesAsync(ct);
-        return Ok(item);
+        _uow.Products.Add(product);
+        await _uow.SaveChangesAsync(ct);
+
+        return Ok(new { product.Id, product.Name, product.Region, ProductType = product.ProductType.ToString(), product.Sku, product.ImageUrl, product.Description, product.Material, product.Price, product.IsHighlight, product.CreatedAt });
     }
 
-    [HttpDelete("collections/{id}")]
-    public async Task<IActionResult> DeleteCollectionItem(Guid id, CancellationToken ct)
+    [HttpPut("products/{id}")]
+    public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductRequest req, CancellationToken ct)
     {
-        var item = await _db.CollectionItems.FindAsync([id], ct);
-        if (item == null) return NotFound();
-        
-        item.IsDeleted = true;
-        await _db.SaveChangesAsync(ct);
+        var product = await _uow.Products.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (product == null) return NotFound();
+
+        product.Update(
+            name: req.Name,
+            region: req.Region,
+            sku: req.Sku,
+            description: req.Description,
+            material: req.Material,
+            price: req.Price,
+            imageUrl: req.ImageUrl,
+            isHighlight: req.IsHighlight);
+
+        await _uow.SaveChangesAsync(ct);
+        return Ok(new { product.Id, product.Name, product.Region, ProductType = product.ProductType.ToString(), product.Sku, product.ImageUrl, product.Description, product.Material, product.Price, product.IsHighlight });
+    }
+
+    [HttpDelete("products/{id}")]
+    public async Task<IActionResult> DeleteProduct(Guid id, CancellationToken ct)
+    {
+        var product = await _uow.Products.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (product == null) return NotFound();
+
+        product.MarkAsDeleted();
+        await _uow.SaveChangesAsync(ct);
         return NoContent();
     }
 
@@ -204,7 +236,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetCharacters(
         [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
     {
-        var query = _db.Characters.Where(x => !x.IsDeleted);
+        var query = _uow.Characters.Query().Where(x => !x.IsDeleted);
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -222,31 +254,31 @@ public class AdminController : ControllerBase
     [HttpPost("characters")]
     public async Task<IActionResult> CreateCharacter([FromBody] CreateCharacterRequest req, CancellationToken ct)
     {
-        var character = Character.Create(req.Name, req.Region, req.ModelUrl, System.Text.Json.JsonDocument.Parse("{}"), req.Description);
-        _db.Characters.Add(character);
-        await _db.SaveChangesAsync(ct);
+        var character = Character.Create(req.Name, req.Region, req.ModelUrl, "{}", req.Description, req.ProductId);
+        _uow.Characters.Add(character);
+        await _uow.SaveChangesAsync(ct);
         return Ok(character);
     }
 
     [HttpPut("characters/{id}")]
     public async Task<IActionResult> UpdateCharacter(Guid id, [FromBody] UpdateCharacterRequest req, CancellationToken ct)
     {
-        var character = await _db.Characters.FindAsync([id], ct);
+        var character = await _uow.Characters.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (character == null) return NotFound();
 
         character.Update(req.Name, req.Region, req.ModelUrl, req.Description);
-        await _db.SaveChangesAsync(ct);
+        await _uow.SaveChangesAsync(ct);
         return Ok(character);
     }
 
     [HttpDelete("characters/{id}")]
     public async Task<IActionResult> DeleteCharacter(Guid id, CancellationToken ct)
     {
-        var character = await _db.Characters.FindAsync([id], ct);
+        var character = await _uow.Characters.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (character == null) return NotFound();
         
         character.SoftDelete();
-        await _db.SaveChangesAsync(ct);
+        await _uow.SaveChangesAsync(ct);
         return NoContent();
     }
 
@@ -255,25 +287,37 @@ public class AdminController : ControllerBase
     // Admins use these endpoints to create a Doll MODEL and then mint any number of
     // single-use QR tokens for that model. Each physical unit sold carries one token.
 
-    /// <summary>GET /api/v1/admin/dolls — list all Doll models.</summary>
+    /// <summary>GET /api/v1/admin/dolls — list all Doll models with token stats.</summary>
     [HttpGet("dolls")]
     public async Task<IActionResult> GetDolls(CancellationToken ct)
     {
-        var dolls = await _db.Products.AsNoTracking().Where(p => p.ProductType == Domain.Enums.ProductType.Doll)
-            .OrderBy(p => p.Region).ThenBy(p => p.Id)
+        var dolls = await _uow.Products.Query()
+            .AsNoTracking()
+            .Where(p => p.ProductType == ProductType.Doll && !p.IsDeleted && _uow.Characters.Query().Any(c => c.ProductId == p.Id && !c.IsDeleted))
+            .OrderBy(p => p.Region).ThenBy(p => p.Name)
             .Select(p => new
             {
                 p.Id,
-                Sku = p.Sku,
+                p.Name,
+                p.Sku,
                 p.Region,
-                ModelUrl = _db.Characters.Where(c => c.Region == p.Region && !c.IsDeleted).Select(c => c.ModelUrl).FirstOrDefault(),
-                CreatedAt = DateTime.UtcNow // fallback
+                p.ImageUrl,
+                p.CreatedAt,
+                ModelUrl = _uow.Characters.Query()
+                    .Where(c => c.ProductId == p.Id && !c.IsDeleted)
+                    .Select(c => c.ModelUrl)
+                    .FirstOrDefault(),
+                Character = _uow.Characters.Query()
+                    .Where(c => c.ProductId == p.Id && !c.IsDeleted)
+                    .Select(c => new { c.Id, c.Name, c.ModelUrl })
+                    .FirstOrDefault()
             })
             .ToListAsync(ct);
 
         // Count tokens per doll
         var dollIds = dolls.Select(d => d.Id).ToList();
-        var tokenStats = await _db.DollTokens
+        var tokenStats = await _uow.DollTokens.Query()
+            .AsNoTracking()
             .Where(t => dollIds.Contains(t.DollId))
             .GroupBy(t => t.DollId)
             .Select(g => new
@@ -287,30 +331,84 @@ public class AdminController : ControllerBase
 
         var result = dolls.Select(d => new
         {
-            d.Id, d.Sku, d.Region, d.ModelUrl, d.CreatedAt,
+            d.Id, d.Name, d.Sku, d.Region, d.ImageUrl, d.CreatedAt,
+            modelUrl = d.ModelUrl,
+            character = d.Character,
             tokens = tokenStats.GetValueOrDefault(d.Id)
         }).ToList();
 
         return Ok(new { dolls = result, total = result.Count });
     }
 
-    /// <summary>POST /api/v1/admin/dolls — create a new Doll model.</summary>
+    /// <summary>
+    /// POST /api/v1/admin/dolls — upsert a Doll model by <c>region</c>.
+    /// <para>
+    /// If a Doll with the same region (case-insensitive, trimmed) already exists, the
+    /// existing one is returned with <c>reused=true</c> and no duplicate row is
+    /// inserted. This matches the requirement: "khi tạo mới model trong admin thì sẽ
+    /// lấy theo product có type=doll có sẵn".
+    /// </para>
+    /// </summary>
     [HttpPost("dolls")]
     public async Task<IActionResult> CreateDoll([FromBody] CreateDollRequest req, CancellationToken ct)
     {
         if (req == null || string.IsNullOrWhiteSpace(req.Region))
             return BadRequest(new { success = false, message = "Region is required." });
 
-        var doll = Domain.Entities.Product.Create(req.Sku, Domain.Enums.ProductType.Doll, req.Region);
-        _db.Products.Add(doll);
-        await _db.SaveChangesAsync(ct);
+        var region = req.Region.Trim();
 
-        _logger.LogInformation("Admin created Doll {Id} (region={Region}, sku={Sku})",
+        // Upsert: prefer the existing Doll for this region so we never duplicate.
+        var existing = await _products.GetDollByRegionAsync(region, ct);
+        if (existing != null)
+        {
+            // Optionally patch sku / image on the existing row when caller provided them.
+            bool dirty = false;
+            if (!string.IsNullOrWhiteSpace(req.Sku) && req.Sku != existing.Sku)
+            {
+                existing.Update(sku: req.Sku, region: null);
+                dirty = true;
+            }
+            if (!string.IsNullOrWhiteSpace(req.ImageUrl) && req.ImageUrl != existing.ImageUrl)
+            {
+                // SOLID fix: use the domain's own UpdateImageUrl method instead of reflection.
+                // Reflection bypasses all invariants, is brittle, slow, and unsafe.
+                existing.UpdateImageUrl(req.ImageUrl);
+                dirty = true;
+            }
+            if (dirty) await _products.UpdateAsync(existing, ct);
+
+            _logger.LogInformation(
+                "Admin reused Doll {Id} for region {Region} (sku={Sku})",
+                existing.Id, existing.Region, existing.Sku);
+
+            return Ok(new
+            {
+                success = true,
+                reused = true,
+                doll = new
+                {
+                    existing.Id, existing.Sku, existing.Region,
+                    existing.ImageUrl, existing.CreatedAt
+                }
+            });
+        }
+
+        var doll = Product.Create(req.Sku ?? region, region, ProductType.Doll, sku: req.Sku, imageUrl: req.ImageUrl);
+        _uow.Products.Add(doll);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation(
+            "Admin created Doll {Id} (region={Region}, sku={Sku})",
             doll.Id, doll.Region, doll.Sku);
+
         return Ok(new
         {
             success = true,
-            doll = new { doll.Id, doll.Sku, doll.Region, doll.CreatedAt }
+            reused = false,
+            doll = new
+            {
+                doll.Id, doll.Sku, doll.Region, doll.ImageUrl, doll.CreatedAt
+            }
         });
     }
 
@@ -318,10 +416,10 @@ public class AdminController : ControllerBase
     [HttpGet("dolls/{dollId}/tokens")]
     public async Task<IActionResult> GetDollTokens(Guid dollId, CancellationToken ct)
     {
-        var doll = await _db.Products.FindAsync([dollId], ct); if (doll == null || doll.ProductType != Domain.Enums.ProductType.Doll)
+        var doll = await _uow.Products.Query().FirstOrDefaultAsync(x => x.Id == dollId, ct); if (doll == null || doll.ProductType != Domain.Enums.ProductType.Doll)
             return NotFound(new { message = "Model 3D not found." });
 
-        var tokens = await _db.DollTokens
+        var tokens = await _uow.DollTokens.Query()
             .AsNoTracking()
             .Where(t => t.DollId == dollId)
             .OrderByDescending(t => t.GeneratedAt)
@@ -360,7 +458,7 @@ public class AdminController : ControllerBase
         req ??= new GenerateDollTokensRequest();
         var count = Math.Clamp(req.Count ?? 1, 1, 1000);
 
-        var doll = await _db.Products.FindAsync([dollId], ct); if (doll == null || doll.ProductType != Domain.Enums.ProductType.Doll)
+        var doll = await _uow.Products.Query().FirstOrDefaultAsync(x => x.Id == dollId, ct); if (doll == null || doll.ProductType != Domain.Enums.ProductType.Doll)
             return NotFound(new { message = "Model 3D not found." });
 
         var generated = new List<object>(count);
@@ -397,13 +495,13 @@ public class AdminController : ControllerBase
     [HttpDelete("dolls/{dollId}/tokens/{tokenId}")]
     public async Task<IActionResult> RevokeDollToken(Guid dollId, Guid tokenId, CancellationToken ct)
     {
-        var token = await _db.DollTokens.FirstOrDefaultAsync(
+        var token = await _uow.DollTokens.Query().FirstOrDefaultAsync(
             t => t.Id == tokenId && t.DollId == dollId, ct);
         if (token == null) return NotFound(new { message = "Token not found." });
         if (token.IsUsed) return Conflict(new { message = "Token is already used." });
 
         token.MarkAsUsed();
-        await _db.SaveChangesAsync(ct);
+        await _uow.SaveChangesAsync(ct);
 
         _logger.LogWarning("Admin revoked token {TokenId} for doll {DollId}", tokenId, dollId);
         return Ok(new { success = true, message = "Token revoked." });
@@ -414,7 +512,7 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> GetAccounts(
         [FromQuery] string? search, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, CancellationToken ct = default)
     {
-        var query = _db.PassportAccounts.AsQueryable();
+        var query = _uow.PassportAccounts.Query();
 
         if (!string.IsNullOrEmpty(search))
         {
@@ -432,7 +530,7 @@ public class AdminController : ControllerBase
     [HttpPut("accounts/{id}/toggle-lock")]
     public async Task<IActionResult> ToggleAccountLock(Guid id, CancellationToken ct)
     {
-        var account = await _db.PassportAccounts.FindAsync([id], ct);
+        var account = await _uow.PassportAccounts.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (account == null) return NotFound();
         
         if (account.IsLocked)
@@ -440,18 +538,18 @@ public class AdminController : ControllerBase
         else
             account.Lock();
             
-        await _db.SaveChangesAsync(ct);
+        await _uow.SaveChangesAsync(ct);
         return Ok(account);
     }
 
     [HttpDelete("accounts/{id}")]
     public async Task<IActionResult> DeleteAccount(Guid id, CancellationToken ct)
     {
-        var account = await _db.PassportAccounts.FindAsync([id], ct);
+        var account = await _uow.PassportAccounts.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (account == null) return NotFound();
         
         account.Lock(); // Soft delete for accounts is Lock
-        await _db.SaveChangesAsync(ct);
+        await _uow.SaveChangesAsync(ct);
         return NoContent();
     }
 
@@ -461,7 +559,7 @@ public class AdminController : ControllerBase
     [HttpGet("checkpoints")]
     public async Task<IActionResult> GetCheckpoints(CancellationToken ct)
     {
-        var checkpoints = await _db.Checkpoints
+        var checkpoints = await _uow.Checkpoints.Query()
             .AsNoTracking()
             .OrderBy(c => c.Region).ThenBy(c => c.Name)
             .Select(c => new
@@ -486,8 +584,8 @@ public class AdminController : ControllerBase
             req.Radius, req.Region,
             storyAssetUrl: req.StoryAssetUrl);
 
-        _db.Checkpoints.Add(checkpoint);
-        await _db.SaveChangesAsync(ct);
+        _uow.Checkpoints.Add(checkpoint);
+        await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Admin created checkpoint {Id} ({Name}) in {Region}", checkpoint.Id, checkpoint.Name, checkpoint.Region);
         return CreatedAtAction(nameof(GetCheckpoints), new { id = checkpoint.Id }, new { checkpoint.Id });
@@ -500,11 +598,11 @@ public class AdminController : ControllerBase
     public async Task<IActionResult> PatchCheckpoint(
         Guid id, [FromBody] PatchCheckpointRequest req, CancellationToken ct)
     {
-        var checkpoint = await _db.Checkpoints.FindAsync([id], ct);
+        var checkpoint = await _uow.Checkpoints.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (checkpoint == null) return NotFound();
 
         checkpoint.Update(req.Name, req.Region, req.StoryAssetUrl, req.IsActive);
-        await _db.SaveChangesAsync(ct);
+        await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Admin patched checkpoint {Id}", id);
         return Ok(new
@@ -516,40 +614,6 @@ public class AdminController : ControllerBase
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────────────
-
-public class CreateCheckpointRequest
-{
-    public string Name { get; set; } = string.Empty;
-    public decimal Latitude { get; set; }
-    public decimal Longitude { get; set; }
-    public int Radius { get; set; } = 100;
-    public string Region { get; set; } = string.Empty;
-    public string? StoryAssetUrl { get; set; }
-}
-
-public class PatchCheckpointRequest
-{
-    public string? Name { get; set; }
-    public string? Region { get; set; }
-    public string? StoryAssetUrl { get; set; }
-    public bool? IsActive { get; set; }
-}
-
-public class CreateDollRequest
-{
-    /// <summary>Internal SKU, e.g. "SKU-HANOI-001". Optional.</summary>
-    public string? Sku { get; set; }
-
-    /// <summary>Region the doll unlocks bonuses for, e.g. "Hà Nội". Required.</summary>
-    public string Region { get; set; } = string.Empty;
-}
-
-public class GenerateDollTokensRequest
-{
-    /// <summary>How many tokens to generate (default 1, max 1000).</summary>
-    public int? Count { get; set; }
-}
-
 
 
 

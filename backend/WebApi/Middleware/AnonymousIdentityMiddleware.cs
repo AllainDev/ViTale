@@ -39,35 +39,32 @@ public class AnonymousIdentityMiddleware
             return;
         }
 
+        // OWASP A01: If the request carries a valid JWT, defer to BaseController to resolve
+        // the traveler from the signed `tid` claim. We DO NOT trust `X-Traveler-Id`
+        // from the client — allowing that would let any caller impersonate any
+        // traveler by setting an arbitrary header.
+        var hasJwt = context.Request.Headers.ContainsKey("Authorization")
+            && context.Request.Headers["Authorization"].ToString().StartsWith("Bearer ", StringComparison.Ordinal);
+
         Traveler? traveler = null;
 
-        // 1. Try to get Traveler ID from custom header (solves cross-origin cookie drops on localhost)
-        if (context.Request.Headers.TryGetValue("X-Traveler-Id", out var headerValue)
-            && !string.IsNullOrWhiteSpace(headerValue))
-        {
-            if (Guid.TryParse(headerValue, out var travelerId))
-            {
-                traveler = await travelerRepo.GetByIdAsync(travelerId, context.RequestAborted);
-            }
-        }
-
-        // 2. Fallback to cookie
-        if (traveler is null && context.Request.Cookies.TryGetValue(CookieName, out var cookieValue)
+        // Fallback to cookie (only used when no JWT is present)
+        if (!hasJwt && context.Request.Cookies.TryGetValue(CookieName, out var cookieValue)
             && !string.IsNullOrWhiteSpace(cookieValue))
         {
-            // Attempt to parse cookie as TravelerId (Guid)
             if (Guid.TryParse(cookieValue, out var travelerId))
             {
                 traveler = await travelerRepo.GetByIdAsync(travelerId, context.RequestAborted);
             }
 
-            if (traveler is null)
+            if (traveler is null || !traveler.IsAnonymous)
             {
-                _logger.LogWarning("Invalid vitale_session cookie value, issuing new identity");
+                _logger.LogWarning("Invalid or non-anonymous vitale_session cookie value, issuing new identity");
+                traveler = null;
             }
         }
 
-        if (traveler is null)
+        if (traveler is null && !hasJwt)
         {
             // New visitor — create anonymous traveler
             var anonymousId = random.GenerateAnonymousId();
@@ -77,32 +74,31 @@ public class AnonymousIdentityMiddleware
             _logger.LogInformation("New anonymous traveler created: {TravelerId}", traveler.Id);
         }
 
-        // Attach traveler to context for controllers
-        context.Items["CurrentTraveler"] = traveler;
-
-        // Refresh / set the cookie (reset TTL on each request)
-        var cookieDomain = Environment.GetEnvironmentVariable("COOKIE_DOMAIN") ?? "localhost";
-        var isSecure = !cookieDomain.Contains("localhost", StringComparison.OrdinalIgnoreCase);
-
-        var cookieOptions = new CookieOptions
+        if (traveler != null)
         {
-            HttpOnly = true,
-            Secure = isSecure,
-            SameSite = SameSiteMode.Lax,
-            MaxAge = TimeSpan.FromDays(365),
-            Path = "/"
-        };
+            // Attach traveler to context for controllers
+            context.Items["CurrentTraveler"] = traveler;
 
-        if (!cookieDomain.Equals("localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            cookieOptions.Domain = cookieDomain;
+            // Refresh / set the cookie (reset TTL on each request)
+            var cookieDomain = Environment.GetEnvironmentVariable("COOKIE_DOMAIN") ?? "localhost";
+            var isSecure = !cookieDomain.Contains("localhost", StringComparison.OrdinalIgnoreCase);
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = isSecure,
+                SameSite = SameSiteMode.Lax,
+                MaxAge = TimeSpan.FromDays(30),
+                Path = "/"
+            };
+
+            if (!cookieDomain.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            {
+                cookieOptions.Domain = cookieDomain;
+            }
+
+            context.Response.Cookies.Append(CookieName, traveler.Id.ToString(), cookieOptions);
         }
-
-        context.Response.Cookies.Append(CookieName, traveler.Id.ToString(), cookieOptions);
-        
-        // Also expose it as a header for frontend clients to store manually
-        context.Response.Headers["X-Traveler-Id"] = traveler.Id.ToString();
-        context.Response.Headers["Access-Control-Expose-Headers"] = "X-Traveler-Id";
 
         await _next(context);
     }

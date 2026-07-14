@@ -80,7 +80,7 @@ export default function AchievementsView({ status, dict }: AchievementsViewProps
 
       {/* STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
-        <StatCard icon={<Zap className="w-5 h-5 text-amber-500" />} label={language === 'vi' ? "Tổng XP" : "Total XP"} value={status.totalXp.toLocaleString()} />
+        <StatCard icon={<Zap className="w-5 h-5 text-amber-500" />} label={language === 'vi' ? "Số búp bê" : "Dolls Collected"} value={status.ownedDolls.length.toString()} />
         <StatCard icon={<MapPin className="w-5 h-5 text-emerald-500" />} label={language === 'vi' ? "Địa điểm đã đến (Tem)" : "Locations Visited (Stamps)"} value={status.stampsUnlocked.toString()} />
         <StatCard icon={<Medal className="w-5 h-5 text-blue-500" />} label={language === 'vi' ? "Thành tựu" : "Achievements"} value={status.badgesEarned.toString()} />
       </div>
@@ -129,7 +129,8 @@ export default function AchievementsView({ status, dict }: AchievementsViewProps
         </div>
       </div>
 
-      {/* DOLL COLLECTION SECTION */}
+      {/* DOLL COLLECTION SECTION — minimal: just the photo and region label.
+          No SKU, no "Activated" text, no date (per design feedback). */}
       <div className="mt-12">
         <h3 className="text-2xl font-serif font-bold text-stone-800 mb-6 flex items-center gap-3">
           <span className="text-3xl">🎎</span>
@@ -153,24 +154,29 @@ export default function AchievementsView({ status, dict }: AchievementsViewProps
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {status.ownedDolls.map(doll => (
-              <div key={doll.id} className="bg-white rounded-3xl p-5 border border-stone-100 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center group">
-                <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 mb-4 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
-                  <div className="text-6xl drop-shadow-xl">🎎</div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                <div key={doll.id} className="bg-white rounded-3xl p-4 border border-stone-100 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col items-center text-center group">
+                  <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 mb-3 flex items-center justify-center relative overflow-hidden group-hover:scale-105 transition-transform duration-300">
+                    {doll.imageUrl
+                      ? <img src={doll.imageUrl} alt={doll.region} className="w-full h-full object-cover" />
+                      : (
+                        // Visual fallback while we wait for admin to upload a photo:
+                        // a gradient card with the region code as a watermark so
+                        // users still see something more meaningful than a 404.
+                        <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-amber-100 via-orange-100 to-rose-100">
+                          <span className="text-5xl drop-shadow-xl mb-1">🎎</span>
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-amber-800/80 px-2 py-0.5 rounded-full bg-white/70">
+                            {doll.region}
+                          </span>
+                        </div>
+                      )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                  </div>
+                  <h4 className="font-serif font-bold text-stone-800 text-sm line-clamp-1">
+                    {language === 'vi'
+                      ? `Búp bê ${doll.region}`
+                      : `${doll.region} Doll`}
+                  </h4>
                 </div>
-                <h4 className="font-serif font-bold text-stone-800 mb-1 text-lg line-clamp-1">{doll.region}</h4>
-                {doll.sku && (
-                  <span className="text-[10px] font-mono text-stone-400 bg-stone-50 px-2 py-0.5 rounded-full border border-stone-200 mb-2">
-                    {doll.sku}
-                  </span>
-                )}
-                <div className="text-xs text-stone-500 flex flex-col gap-0.5">
-                  <span className="font-medium text-emerald-600">
-                    {language === 'vi' ? 'Đã kích hoạt' : 'Activated'}
-                  </span>
-                  <span>{new Date(doll.claimedAt).toLocaleDateString(language === 'vi' ? 'vi-VN' : 'en-US')}</span>
-                </div>
-              </div>
             ))}
           </div>
         )}

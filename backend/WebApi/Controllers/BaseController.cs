@@ -37,5 +37,10 @@ public abstract class BaseController : ControllerBase
                    ?? throw new WebApi.Middleware.UnauthorizedException("Unauthorized. Please log in.");
         }
     }
-}
 
+    /// <summary>
+    /// Async compatibility shim — wraps the synchronous <see cref="CurrentTraveler"/> property.
+    /// Prefer <c>CurrentTraveler</c> in new code.
+    /// </summary>
+    protected Task<Traveler> GetCurrentTravelerAsync() => Task.FromResult(CurrentTraveler);
+}

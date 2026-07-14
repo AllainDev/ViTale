@@ -1,6 +1,6 @@
 using Application.DTOs;
 using Application.Interfaces.Services;
-using Infrastructure.Persistence;
+using Application.Interfaces.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
@@ -20,20 +20,20 @@ public class GamificationController : BaseController
     private readonly IGamificationService _gamificationService;
     private readonly Application.Interfaces.Services.IGeolocationService _geo;
     private readonly ITokenService _tokenService;
-    private readonly ApplicationDbContext _db;
+    private readonly IUnitOfWork _uow;
 
     public GamificationController(
         ICheckinService checkinService,
         IGamificationService gamificationService,
         Application.Interfaces.Services.IGeolocationService geo,
         ITokenService tokenService,
-        ApplicationDbContext db)
+        IUnitOfWork uow)
     {
         _checkinService = checkinService;
         _gamificationService = gamificationService;
         _geo = geo;
         _tokenService = tokenService;
-        _db = db;
+        _uow = uow;
     }
 
     // ── POST /api/v1/gamification/checkin ─────────────────────────────────────
@@ -50,70 +50,60 @@ public class GamificationController : BaseController
         if (!ModelState.IsValid)
             throw new ValidationException("Invalid request body.");
 
-        Console.WriteLine($"[USER_LOCATION] Lat: {request.Latitude}, Lng: {request.Longitude}");
+        // OWASP A09: do NOT log GPS coordinates to console — privacy violation.
+        // (Request-level structured logging is done by Serilog request middleware.)
 
-        var travelerId = CurrentTraveler.Id;
+        var travelerId = (await GetCurrentTravelerAsync()).Id;
 
-        try
+        // OWASP A09: ExceptionHandlingMiddleware handles all unhandled exceptions.
+        // Domain exceptions (ValidationException, etc.) flow through it and never
+        // expose internal details. Do NOT catch Exception here to leak ex.Message.
+        var result = await _checkinService.ProcessGamificationCheckinAsync(
+            travelerId,
+            request.Latitude,
+            request.Longitude,
+            request.AccuracyMeters,
+            request.CheckpointId,
+            ct);
+
+        if (!result.Success)
         {
-            var result = await _checkinService.ProcessGamificationCheckinAsync(
-                travelerId,
-                request.Latitude,
-                request.Longitude,
-                request.AccuracyMeters,
-                request.CheckpointId,
-                ct);
-
-            if (!result.Success)
+            var statusCode = result.ErrorCode switch
             {
-                var statusCode = result.ErrorCode switch
-                {
-                    "INVALID_COORDS" => 400,
-                    "INVALID_TOKEN"  => 400,
-                    "OUT_OF_RANGE"   => 404,
-                    "ALREADY_COMPLETED"    => 409,
-                    "BONUS_ALREADY_AWARDED" => 409,
-                    "NO_XP_AVAILABLE"      => 409,
-                    _ => 500
-                };
+                "INVALID_COORDS" => 400,
+                "INVALID_TOKEN"  => 400,
+                "OUT_OF_RANGE"   => 404,
+                "ALREADY_COMPLETED"    => 409,
+                "BONUS_ALREADY_AWARDED" => 409,
+                "NO_XP_AVAILABLE"      => 409,
+                _ => 500
+            };
 
-                return StatusCode(statusCode, new
-                {
-                    success = false,
-                    errorCode = result.ErrorCode,
-                    errorMessage = result.ErrorMessage
-                });
-            }
-
-            return Ok(new CheckinResponse
-            {
-                Success = true,
-                CheckpointId = result.CheckpointId,
-                CheckpointName = result.CheckpointName,
-                CheckpointRegion = result.CheckpointRegion,
-                StoryAssetUrl = result.StoryAssetUrl,
-                XpAwarded = result.XpAwarded,
-                TotalXp = result.TotalXp,
-                CurrentLevel = result.CurrentLevel,
-                NextLevelXp = result.NextLevelXp,
-                LeveledUp = result.LeveledUp,
-                IsNewStamp = result.IsNewStamp,
-                HasDollBonus = result.HasDollBonus,
-                DollName = result.DollName,
-                DollRegion = result.DollRegion
-            });
-        }
-        catch (Exception ex)
-        {
-            return StatusCode(500, new
+            return StatusCode(statusCode, new
             {
                 success = false,
-                errorCode = "DEBUG_ERROR",
-                errorMessage = ex.Message
+                errorCode = result.ErrorCode,
+                errorMessage = result.ErrorMessage
             });
         }
 
-
+        return Ok(new CheckinResponse
+        {
+            Success = true,
+            CheckpointId = result.CheckpointId,
+            CheckpointName = result.CheckpointName,
+            CheckpointRegion = result.CheckpointRegion,
+            StoryAssetUrl = result.StoryAssetUrl,
+            XpAwarded = result.XpAwarded,
+            TotalXp = result.TotalXp,
+            CurrentLevel = result.CurrentLevel,
+            NextLevelXp = result.NextLevelXp,
+            LeveledUp = result.LeveledUp,
+            IsNewStamp = result.IsNewStamp,
+            HasDollBonus = result.HasDollBonus,
+            DollName = result.DollName,
+            DollRegion = result.DollRegion
+        });
     }
 
     // ── POST /api/v1/gamification/claim-doll ──────────────────────────────────
@@ -130,7 +120,7 @@ public class GamificationController : BaseController
         if (string.IsNullOrWhiteSpace(request.DollToken))
             return BadRequest(new { success = false, errorCode = "INVALID_TOKEN", errorMessage = "Mã QR không hợp lệ." });
 
-        var travelerId = CurrentTraveler.Id;
+        var travelerId = (await GetCurrentTravelerAsync()).Id;
 
         // ── 1. Validate via TokenService (HMAC + format + region/type) ──
         var tokenResult = await _tokenService.ValidateTokenAsync(request.DollToken, travelerId, ct);
@@ -145,13 +135,10 @@ public class GamificationController : BaseController
         }
 
         // ── 2. Atomic claim + mark-used in a transaction ──────────────────
-        var strategy = _db.Database.CreateExecutionStrategy();
-        var result = await strategy.ExecuteAsync<IActionResult>(async () =>
-        {
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
+        var result = await _uow.ExecuteInTransactionAsync<IActionResult>(async () => {
             try
             {
-                var tokenEntity = await _db.DollTokens
+                var tokenEntity = await _uow.DollTokens.Query()
                     .FirstOrDefaultAsync(t => t.Token == request.DollToken, ct);
 
                 if (tokenEntity == null)
@@ -171,7 +158,7 @@ public class GamificationController : BaseController
 
                 try
                 {
-                    await _db.SaveChangesAsync(ct);
+                    await _uow.SaveChangesAsync(ct);
                 }
                 catch (DbUpdateConcurrencyException)
                 {
@@ -188,13 +175,13 @@ public class GamificationController : BaseController
                 var dollRegion = await _tokenService.GetDollRegionPublicAsync(tokenEntity.DollId, ct);
                 if (!string.IsNullOrEmpty(dollRegion))
                 {
-                    var profile = await _db.UserGamificationProfiles
+                    var profile = await _uow.UserGamificationProfiles.Query()
                         .FirstOrDefaultAsync(p => p.UserId == travelerId, ct);
                     prevLevel = profile?.CurrentLevel ?? 0;
 
-                    var stampToReward = await _db.UserStamps
+                    var stampToReward = await _uow.UserStamps.Query()
                         .Where(s => s.UserId == travelerId)
-                        .Join(_db.Checkpoints, s => s.CheckpointId, c => c.Id, (s, c) => new { Stamp = s, c.Region })
+                        .Join(_uow.Checkpoints.Query(), s => s.CheckpointId, c => c.Id, (s, c) => new { Stamp = s, c.Region })
                         .Where(x => x.Region == dollRegion && !x.Stamp.HasDollBonus)
                         .Select(x => x.Stamp)
                         .FirstOrDefaultAsync(ct);
@@ -205,13 +192,13 @@ public class GamificationController : BaseController
                         retroactiveBonusAwarded = xpAwarded > 0;
                     }
 
-                    profile = await _db.UserGamificationProfiles
+                    profile = await _uow.UserGamificationProfiles.Query()
                         .FirstOrDefaultAsync(p => p.UserId == travelerId, ct);
                     totalXp = profile?.TotalXp ?? 0;
                     newLevel = profile?.CurrentLevel ?? 0;
                 }
 
-                await tx.CommitAsync(ct);
+                
 
                 return Ok(new
                 {
@@ -228,7 +215,7 @@ public class GamificationController : BaseController
             }
             catch
             {
-                await tx.RollbackAsync(ct);
+                
                 throw;
             }
         });
@@ -242,6 +229,9 @@ public class GamificationController : BaseController
     [HttpPost("gamification/create-test-checkpoint")]
     public async Task<IActionResult> CreateTestCheckpoint(CancellationToken ct)
     {
+        var env = HttpContext.RequestServices.GetRequiredService<IHostEnvironment>();
+        if (!env.IsDevelopment()) return NotFound("Only available in development environment.");
+
         // 500m gives the "Nhà của bạn" checkpoint a generous GPS tolerance so the user can
         // check-in from anywhere within a typical residential block. Combined with the
         // per-checkpoint effectiveRadius logic in CheckinService, the actual check-in
@@ -253,20 +243,20 @@ public class GamificationController : BaseController
         const decimal homeLng = 105.52057995771676m;
         const string homeName = "Nhà của bạn";
 
-        var existing = await _db.Checkpoints
+        var existing = await _uow.Checkpoints.Query()
             .FirstOrDefaultAsync(c => c.Name == homeName, ct);
 
         if (existing != null)
         {
             existing.UpdateRadius(homeRadius);
-            await _db.SaveChangesAsync(ct);
+            await _uow.SaveChangesAsync(ct);
             return Ok(new { success = true, checkpointId = existing.Id, updated = true });
         }
 
         var cp = Domain.Entities.Checkpoint.Create(
             homeName, homeLat, homeLng, homeRadius, "Hà Nội", null, null);
-        _db.Checkpoints.Add(cp);
-        await _db.SaveChangesAsync(ct);
+        _uow.Checkpoints.Add(cp);
+        await _uow.SaveChangesAsync(ct);
         return Ok(new { success = true, checkpointId = cp.Id, created = true });
     }
 
@@ -278,12 +268,12 @@ public class GamificationController : BaseController
     [HttpGet("gamification/status")]
     public async Task<IActionResult> GetStatus(CancellationToken ct)
     {
-        var travelerId = CurrentTraveler.Id;
+        var travelerId = (await GetCurrentTravelerAsync()).Id;
         var status = await _gamificationService.GetUserGamificationStatusAsync(travelerId, ct);
 
         // Hydrate HasDollBonus per stamp from the database
         var checkpointIds = status.Stamps.Select(s => s.CheckpointId).ToList();
-        var stampBonusMap = await _db.UserStamps
+        var stampBonusMap = await _uow.UserStamps.Query()
             .AsNoTracking()
             .Where(s => s.UserId == travelerId && checkpointIds.Contains(s.CheckpointId))
             .Select(s => new { s.CheckpointId, s.HasDollBonus })
@@ -297,19 +287,23 @@ public class GamificationController : BaseController
             HasDollBonus = stampBonusMap.GetValueOrDefault(s.CheckpointId)
         }).ToList();
 
-        // Hydrate owned dolls
-        var ownedDolls = await _db.DollTokens
+        // Hydrate owned dolls.
+        // ImageUrl: prefer the physical token's image (if any) — otherwise fall
+        // back to the parent Doll Product's image. This is the only place the
+        // client sees the doll's photo, so we resolve it server-side to keep
+        // the public payload clean.
+        var ownedDolls = await _uow.DollTokens.Query()
             .AsNoTracking()
             .Where(t => t.UserId == travelerId && t.ClaimedAt != null)
             .Join(
-                _db.Products,
+                _uow.Products.Query(),
                 t => t.DollId,
                 p => p.Id,
                 (t, p) => new DollDetail
                 {
                     Id = p.Id,
                     Region = p.Region,
-                    Sku = p.Sku,
+                    ImageUrl = !string.IsNullOrEmpty(p.ImageUrl) ? p.ImageUrl : null,
                     ClaimedAt = t.ClaimedAt!.Value
                 }
             )
@@ -337,14 +331,14 @@ public class GamificationController : BaseController
     [HttpGet("gamification/all-checkpoints")]
     public async Task<IActionResult> GetAllCheckpoints(CancellationToken ct)
     {
-        var travelerId = CurrentTraveler.Id;
+        var travelerId = (await GetCurrentTravelerAsync()).Id;
 
-        var checkpoints = await _db.Checkpoints
+        var checkpoints = await _uow.Checkpoints.Query()
             .AsNoTracking()
             .Where(c => c.IsActive)
             .ToListAsync(ct);
 
-        var visitedIds = await _db.UserStamps
+        var visitedIds = await _uow.UserStamps.Query()
             .AsNoTracking()
             .Where(s => s.UserId == travelerId)
             .Select(s => new { s.CheckpointId, s.HasDollBonus })
@@ -352,11 +346,11 @@ public class GamificationController : BaseController
 
         // ── Compute the set of regions the user owns a Doll for ──
         // Join DollTokens (claimed by user) → Products (Doll only) → region.
-        var regionsOwnedByDoll = await _db.DollTokens
+        var regionsOwnedByDoll = await _uow.DollTokens.Query()
             .AsNoTracking()
             .Where(t => t.UserId == travelerId)
             .Join(
-                _db.Products.Where(p => p.ProductType == Domain.Enums.ProductType.Doll),
+                _uow.Products.Query().Where(p => p.ProductType == Domain.Enums.ProductType.Doll),
                 t => t.DollId,
                 p => p.Id,
                 (t, p) => p.Region)
@@ -398,15 +392,15 @@ public class GamificationController : BaseController
 
         const int gamificationRadius = 100; // metres
 
-        var travelerId = CurrentTraveler.Id;
+        var travelerId = (await GetCurrentTravelerAsync()).Id;
 
-        var checkpoints = await _db.Checkpoints
+        var checkpoints = await _uow.Checkpoints.Query()
             .AsNoTracking()
             .Where(c => c.IsActive)
             .ToListAsync(ct);
 
         // Get stamps already collected by this user
-        var visitedIds = await _db.UserStamps
+        var visitedIds = await _uow.UserStamps.Query()
             .AsNoTracking()
             .Where(s => s.UserId == travelerId)
             .Select(s => new { s.CheckpointId, s.HasDollBonus })
@@ -438,33 +432,6 @@ public class GamificationController : BaseController
     }
 }
 
-// ── Request / Response DTOs local to this controller ──────────────────────────
 
-public class GamificationCheckinRequest
-{
-    public decimal Latitude { get; set; }
-    public decimal Longitude { get; set; }
-    public double? AccuracyMeters { get; set; }
-    public Guid? CheckpointId { get; set; }
-}
-
-public class GamificationClaimDollRequest
-{
-    public string DollToken { get; set; } = string.Empty;
-}
-
-public class NearbyGamificationCheckpointDto
-{
-    public Guid Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Region { get; set; } = string.Empty;
-    public decimal Latitude { get; set; }
-    public decimal Longitude { get; set; }
-    public double DistanceMeters { get; set; }
-    public string? StoryAssetUrl { get; set; }
-    public bool IsVisited { get; set; }
-    public bool HasDollBonus { get; set; }
-    public bool RegionDollOwned { get; set; }
-}
 
 

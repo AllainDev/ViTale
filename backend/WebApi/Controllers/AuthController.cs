@@ -1,10 +1,12 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Application.DTOs;
 using Application.Interfaces.Repositories;
 using Application.Interfaces.Services;
 using Domain.Entities;
 using Domain.Enums;
+using Infrastructure.Persistence;
 using WebApi.Middleware;
 
 namespace WebApi.Controllers;
@@ -16,7 +18,9 @@ public class AuthController : BaseController
     private readonly Application.Interfaces.Services.IAuthenticationService _auth;
     private readonly IEmailService _emailService;
     private readonly IEmailValidationService _emailValidation;
+    private readonly IConfiguration _config;
     private readonly ILogger<AuthController> _logger;
+    private readonly ApplicationDbContext _db;
 
     public AuthController(
         IPassportAccountRepository accounts,
@@ -24,14 +28,18 @@ public class AuthController : BaseController
         Application.Interfaces.Services.IAuthenticationService auth,
         IEmailService emailService,
         IEmailValidationService emailValidation,
-        ILogger<AuthController> logger)
+        IConfiguration config,
+        ILogger<AuthController> logger,
+        ApplicationDbContext db)
     {
         _accounts = accounts;
         _travelers = travelers;
         _auth = auth;
         _emailService = emailService;
         _emailValidation = emailValidation;
+        _config = config;
         _logger = logger;
+        _db = db;
     }
 
     /// <summary>GET /api/v1/auth/login/{provider}</summary>
@@ -49,7 +57,7 @@ public class AuthController : BaseController
     [HttpGet("auth/access-denied")]
     public IActionResult AccessDenied()
     {
-        return Redirect("http://localhost:3000/auth/callback?error=access_denied");
+        return Redirect($"{_config["FrontendUrl"] ?? "http://localhost:3000"}/auth/callback?error=access_denied");
     }
 
     /// <summary>GET /api/v1/auth/callback</summary>
@@ -59,12 +67,14 @@ public class AuthController : BaseController
         var result = await HttpContext.AuthenticateAsync(
             Microsoft.AspNetCore.Authentication.Cookies.CookieAuthenticationDefaults.AuthenticationScheme);
 
+        var frontendUrl = _config["FrontendUrl"] ?? "http://localhost:3000";
+
         if (!result.Succeeded)
-            return Redirect("http://localhost:3000/auth/callback?error=auth_failed");
+            return Redirect($"{frontendUrl}/auth/callback?error=auth_failed");
 
         var claims = result.Principal.Identities.FirstOrDefault()?.Claims;
         if (claims == null)
-            return Redirect("http://localhost:3000/auth/callback?error=no_claims");
+            return Redirect($"{frontendUrl}/auth/callback?error=no_claims");
 
         var oAuthUserId = claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         var email = claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Email)?.Value;
@@ -79,10 +89,10 @@ public class AuthController : BaseController
             provider = OAuthProvider.Google;
 
         if (string.IsNullOrEmpty(oAuthUserId))
-            return Redirect("http://localhost:3000/auth/callback?error=missing_id");
+            return Redirect($"{frontendUrl}/auth/callback?error=missing_id");
 
         var account = await _accounts.GetByProviderAsync(provider.ToString(), oAuthUserId, ct);
-        var traveler = CurrentTraveler;
+        var traveler = await GetCurrentTravelerAsync();
 
         if (account == null)
         {
@@ -127,16 +137,26 @@ public class AuthController : BaseController
         }
         else if (traveler.IsAnonymous)
         {
-            // If the user is currently anonymous, but the account exists, we should probably switch to the existing traveler.
-            // But for simplicity in this MVP, we just use CurrentTraveler.
-            traveler.LinkAccount(account.Id);
-            await _travelers.UpdateAsync(traveler, ct);
+            // Account exists and the current session is anonymous.
+            // Find the persistent traveler already linked to this account and use it,
+            // migrating any data (dolls, XP) the user accumulated anonymously.
+            var existingTraveler = await _travelers.GetByLinkedAccountIdAsync(account.Id, ct);
+            if (existingTraveler != null)
+            {
+                await MigrateAnonymousDataAsync(traveler.Id, existingTraveler.Id, ct);
+                traveler = existingTraveler;
+            }
+            else
+            {
+                traveler.LinkAccount(account.Id);
+                await _travelers.UpdateAsync(traveler, ct);
+            }
         }
 
         var jwt = _auth.GenerateJwt(traveler.Id, email, true);
         _logger.LogInformation("Account linked for TravelerId={TravelerId} Provider={Provider}", traveler.Id, provider);
 
-        return Redirect($"http://localhost:3000/auth/callback?token={jwt}");
+        return Redirect($"{frontendUrl}/auth/callback?token={jwt}");
     }
 
     /// <summary>POST /api/v1/auth/refresh</summary>
@@ -167,7 +187,27 @@ public class AuthController : BaseController
             Path = "/"
         });
 
+        // Set refresh token cookie (using JWT generation method since we are using stateless refresh window for MVP)
+        Response.Cookies.Append("vitale_refresh_token", _auth.GenerateRefreshToken(), new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTime.UtcNow.AddDays(30),
+            Path = "/"
+        });
+
         return Ok(new RefreshTokenResponse(newToken, expires));
+    }
+
+    /// <summary>POST /api/v1/auth/logout - Clear JWT cookie</summary>
+    [HttpPost("auth/logout")]
+    public IActionResult Logout()
+    {
+        Response.Cookies.Delete("vitale_jwt");
+        Response.Cookies.Delete("vitale_refresh_token");
+        Response.Cookies.Delete("vitale_session"); // Clear anonymous session
+        return Ok(new { success = true, message = "Logged out successfully" });
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -200,7 +240,7 @@ public class AuthController : BaseController
         await _accounts.CreateAsync(account, ct);
 
         // 6. Link to current traveler or create new traveler
-        var traveler = CurrentTraveler;
+        var traveler = await GetCurrentTravelerAsync();
         if (traveler.IsAnonymous)
         {
             traveler.LinkAccount(account.Id);
@@ -251,12 +291,30 @@ public class AuthController : BaseController
         account.UpdateLastLogin();
         await _accounts.UpdateAsync(account, ct);
 
-        // 6. Link to current traveler or find existing traveler
-        var traveler = CurrentTraveler;
-        if (traveler.IsAnonymous)
+        // 6. Link to current traveler or find existing traveler.
+        // First check if a Traveler is ALREADY linked to this account to prevent data loss!
+        var existingTraveler = await _travelers.GetByLinkedAccountIdAsync(account.Id, ct);
+
+        Traveler traveler;
+        if (existingTraveler != null)
         {
-            traveler.LinkAccount(account.Id);
-            await _travelers.UpdateAsync(traveler, ct);
+            // Persistent traveler found. Migrate any dolls/XP the user collected
+            // on the current anonymous session (different traveler) before switching.
+            var currentTraveler = await GetCurrentTravelerAsync();
+            if (currentTraveler.IsAnonymous && currentTraveler.Id != existingTraveler.Id)
+            {
+                await MigrateAnonymousDataAsync(currentTraveler.Id, existingTraveler.Id, ct);
+            }
+            traveler = existingTraveler;
+        }
+        else
+        {
+            traveler = await GetCurrentTravelerAsync();
+            if (traveler.IsAnonymous)
+            {
+                traveler.LinkAccount(account.Id);
+                await _travelers.UpdateAsync(traveler, ct);
+            }
         }
 
         // 7. Generate JWT
@@ -270,6 +328,15 @@ public class AuthController : BaseController
             Secure = true,
             SameSite = SameSiteMode.Lax,
             Expires = expires,
+            Path = "/"
+        });
+
+        Response.Cookies.Append("vitale_refresh_token", _auth.GenerateRefreshToken(), new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.Lax,
+            Expires = DateTime.UtcNow.AddDays(30),
             Path = "/"
         });
 
@@ -428,7 +495,7 @@ public class AuthController : BaseController
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileRequest request, CancellationToken ct)
     {
-        var traveler = CurrentTraveler;
+        var traveler = await GetCurrentTravelerAsync();
         if (traveler.IsAnonymous || traveler.LinkedAccountId == null)
             return Unauthorized(new { error = "Not logged in" });
 
@@ -450,7 +517,7 @@ public class AuthController : BaseController
     [Microsoft.AspNetCore.Authorization.Authorize]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)
     {
-        var traveler = CurrentTraveler;
+        var traveler = await GetCurrentTravelerAsync();
         if (traveler.IsAnonymous || traveler.LinkedAccountId == null)
             return Unauthorized(new { error = "Not logged in" });
 
@@ -481,18 +548,17 @@ public class AuthController : BaseController
 
     /// <summary>GET /api/v1/auth/profile - Get profile info</summary>
     [HttpGet("auth/profile")]
-    [Microsoft.AspNetCore.Authorization.Authorize(AuthenticationSchemes = Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerDefaults.AuthenticationScheme)]
     public async Task<IActionResult> GetProfile(CancellationToken ct)
     {
-        var traveler = CurrentTraveler;
+        var traveler = await GetCurrentTravelerAsync();
         
         _logger.LogWarning("GetProfile invoked. Traveler ID: {Id}, IsAnonymous: {IsAnonymous}, LinkedAccountId: {LinkedAccountId}", 
             traveler.Id, traveler.IsAnonymous, traveler.LinkedAccountId);
 
         if (traveler.IsAnonymous || traveler.LinkedAccountId == null)
         {
-            _logger.LogWarning("Returning 401 Not logged in because IsAnonymous is {IsAnonymous} and LinkedAccountId is {LinkedAccountId}", traveler.IsAnonymous, traveler.LinkedAccountId);
-            return Unauthorized(new { error = "Not logged in" });
+            _logger.LogInformation("GetProfile: Returning anonymous profile for Traveler {Id}", traveler.Id);
+            return Ok(new { id = traveler.Id, isRegistered = false, fullName = "Khách", email = "" });
         }
 
         var account = await _accounts.GetByIdAsync(traveler.LinkedAccountId.Value, ct);
@@ -502,6 +568,61 @@ public class AuthController : BaseController
             return Unauthorized(new { error = "Account not found" });
         }
 
-        return Ok(new { fullName = account.FullName, email = account.Email, hasPassword = account.PasswordHash != null });
+        return Ok(new { id = traveler.Id, isRegistered = true, fullName = account.FullName, email = account.Email, hasPassword = account.PasswordHash != null });
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Data Migration Helper
+    // ════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Migrates DollTokens claimed by an anonymous traveler to the user's persistent traveler.
+    /// Also re-parents the UserGamificationProfile rows if present.
+    /// This prevents doll loss after logout → login.
+    /// </summary>
+    private async Task MigrateAnonymousDataAsync(Guid fromTravelerId, Guid toTravelerId, CancellationToken ct)
+    {
+        if (fromTravelerId == toTravelerId) return;
+
+        // Migrate unclaimed / claimed-but-not-used doll tokens
+        var orphanedDollTokens = await _db.DollTokens
+            .Where(t => t.UserId == fromTravelerId)
+            .ToListAsync(ct);
+
+        if (orphanedDollTokens.Count > 0)
+        {
+            foreach (var token in orphanedDollTokens)
+            {
+                token.ReassignUser(toTravelerId);
+            }
+            _logger.LogInformation(
+                "Migrated {Count} doll token(s) from anonymous traveler {From} to persistent traveler {To}",
+                orphanedDollTokens.Count, fromTravelerId, toTravelerId);
+        }
+
+        // Migrate UserStamps that belong to the anonymous traveler
+        var orphanedStamps = await _db.UserStamps
+            .Where(s => s.UserId == fromTravelerId)
+            .ToListAsync(ct);
+
+        if (orphanedStamps.Count > 0)
+        {
+            // Only migrate stamps for checkpoints the persistent traveler hasn't visited yet
+            var existingCheckpointIds = await _db.UserStamps
+                .Where(s => s.UserId == toTravelerId)
+                .Select(s => s.CheckpointId)
+                .ToHashSetAsync(ct);
+
+            foreach (var stamp in orphanedStamps)
+            {
+                if (!existingCheckpointIds.Contains(stamp.CheckpointId))
+                    stamp.ReassignUser(toTravelerId);
+            }
+            _logger.LogInformation(
+                "Migrated stamp(s) from anonymous traveler {From} to persistent traveler {To}",
+                fromTravelerId, toTravelerId);
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 }

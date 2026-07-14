@@ -3,36 +3,31 @@ const _baseUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v
 const BASE_URL = _baseUrl.endsWith('/api/v1') ? _baseUrl : `${_baseUrl}/api/v1`;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('vitale_jwt') : null;
+  const authHeader: Record<string, string> = token ? { 'Authorization': `Bearer ${token}` } : {};
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
-    ...init?.headers,
+    ...authHeader,
+    ...(init?.headers as Record<string, string> | undefined),
   };
 
-  if (typeof window !== 'undefined') {
-    const jwt = localStorage.getItem('vitale_jwt');
-    if (jwt) {
-      (headers as Record<string, string>)['Authorization'] = `Bearer ${jwt}`;
-    }
-
-    const travelerId = localStorage.getItem('vitale_traveler_id');
-    if (travelerId) {
-      (headers as Record<string, string>)['X-Traveler-Id'] = travelerId;
-    }
-  }
+  // OWASP A02 + A07: Rely on the HttpOnly `vitale_jwt` cookie issued by the server.
+  // We DO NOT keep a copy of the JWT in localStorage/sessionStorage (XSS-risky)
+  // and we DO NOT send a client-controlled `X-Traveler-Id` header (impersonation
+  // risk). The cookie is automatically attached via `credentials: 'include'`.
+  //
+  // Note: Due to cross-origin development issues with SameSite cookies, we also
+  // include the Authorization header as a fallback.
+  //
+  // The backend's AnonymousIdentityMiddleware + BaseController resolve the
+  // traveler from either the JWT (preferred) or the HttpOnly session cookie.
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
-    credentials: 'include', // send vitale_session cookie
+    credentials: 'include', // send vitale_session + vitale_jwt cookies
     headers,
   });
-
-  // Extract X-Traveler-Id from response and save it
-  if (typeof window !== 'undefined') {
-    const newTravelerId = res.headers.get('X-Traveler-Id');
-    if (newTravelerId) {
-      localStorage.setItem('vitale_traveler_id', newTravelerId);
-    }
-  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -118,7 +113,8 @@ export interface GamificationStamp {
 export interface DollDetail {
   id: string;
   region: string;
-  sku: string | null;
+  sku?: string;
+  imageUrl?: string;
   claimedAt: string;
 }
 

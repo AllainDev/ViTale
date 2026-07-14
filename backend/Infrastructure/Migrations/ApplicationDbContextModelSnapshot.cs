@@ -124,13 +124,19 @@ namespace Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
+                    b.Property<Guid?>("ProductId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("product_id");
+
                     b.Property<string>("Region")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("region");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
 
                     b.ToTable("characters", (string)null);
                 });
@@ -278,6 +284,8 @@ namespace Infrastructure.Migrations
 
                     b.HasIndex("CheckpointId");
 
+                    b.HasIndex("DollTokenId");
+
                     b.HasIndex("TravelerId", "CheckinAt")
                         .HasDatabaseName("idx_checkin_records_traveler_checkin");
 
@@ -294,6 +302,9 @@ namespace Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid")
                         .HasColumnName("id");
+
+                    b.Property<Guid?>("CharacterId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -323,8 +334,8 @@ namespace Infrastructure.Migrations
 
                     b.Property<string>("Region")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("region");
 
                     b.Property<string>("StoryAssetUrl")
@@ -335,67 +346,18 @@ namespace Infrastructure.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("story_chapter_id");
 
+                    b.Property<Guid?>("StoryChapterId1")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CharacterId");
 
                     b.HasIndex("StoryChapterId");
 
+                    b.HasIndex("StoryChapterId1");
+
                     b.ToTable("checkpoints", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Entities.CollectionItem", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid")
-                        .HasColumnName("id");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("description");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("image_url");
-
-                    b.Property<bool>("IsDeleted")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("is_deleted");
-
-                    b.Property<bool>("IsHighlight")
-                        .HasColumnType("boolean")
-                        .HasColumnName("is_highlight");
-
-                    b.Property<string>("Material")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("material");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("name");
-
-                    b.Property<string>("Price")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("price");
-
-                    b.Property<string>("Region")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("region");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("collection_items", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.DollToken", b =>
@@ -688,6 +650,45 @@ namespace Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("description");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text")
+                        .HasColumnName("image_url");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_deleted");
+
+                    b.Property<bool>("IsHighlight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_highlight");
+
+                    b.Property<string>("Material")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("material");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Price")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("price");
+
                     b.Property<string>("ProductType")
                         .IsRequired()
                         .HasColumnType("text")
@@ -695,8 +696,8 @@ namespace Infrastructure.Migrations
 
                     b.Property<string>("Region")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("region");
 
                     b.Property<string>("Sku")
@@ -706,9 +707,15 @@ namespace Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("idx_products_is_deleted");
+
                     b.HasIndex("Sku")
                         .HasDatabaseName("idx_products_sku")
                         .HasFilter("sku IS NOT NULL");
+
+                    b.HasIndex("ProductType", "Region")
+                        .HasDatabaseName("idx_products_type_region");
 
                     b.ToTable("products", (string)null);
                 });
@@ -768,10 +775,13 @@ namespace Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Region")
                         .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
                         .HasColumnName("region");
 
                     b.Property<int>("SortOrder")
@@ -844,6 +854,9 @@ namespace Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<bool>("IsAnonymous")
+                        .HasColumnType("boolean");
+
                     b.Property<Guid?>("LinkedAccountId")
                         .HasColumnType("uuid")
                         .HasColumnName("linked_account_id");
@@ -861,30 +874,6 @@ namespace Infrastructure.Migrations
                     b.HasIndex("LinkedAccountId");
 
                     b.ToTable("travelers", (string)null);
-                });
-
-            modelBuilder.Entity("Domain.Entities.TravelerBadge", b =>
-                {
-                    b.Property<Guid>("TravelerId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("traveler_id");
-
-                    b.Property<Guid>("BadgeId")
-                        .HasColumnType("uuid")
-                        .HasColumnName("badge_id");
-
-                    b.Property<DateTime>("EarnedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("earned_at");
-
-                    b.HasKey("TravelerId", "BadgeId");
-
-                    b.HasIndex("BadgeId");
-
-                    b.HasIndex("TravelerId")
-                        .HasDatabaseName("idx_traveler_badges_traveler_id");
-
-                    b.ToTable("traveler_badges", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.TravelerVoucher", b =>
@@ -950,6 +939,8 @@ namespace Infrastructure.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BadgeId");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("idx_user_badges_user_id");
@@ -1051,6 +1042,8 @@ namespace Infrastructure.Migrations
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CheckpointId");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("idx_user_stamps_user_id");
@@ -1156,6 +1149,16 @@ namespace Infrastructure.Migrations
                     b.ToTable("xp_transactions", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Character", b =>
+                {
+                    b.HasOne("Domain.Entities.Product", "Product")
+                        .WithMany("Characters")
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Product");
+                });
+
             modelBuilder.Entity("Domain.Entities.ChatMessage", b =>
                 {
                     b.HasOne("Domain.Entities.ChatSession", null)
@@ -1182,6 +1185,11 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Domain.Entities.DollToken", "DollToken")
+                        .WithMany("CheckinRecords")
+                        .HasForeignKey("DollTokenId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Domain.Entities.Traveler", "Traveler")
                         .WithMany()
                         .HasForeignKey("TravelerId")
@@ -1190,17 +1198,38 @@ namespace Infrastructure.Migrations
 
                     b.Navigation("Checkpoint");
 
+                    b.Navigation("DollToken");
+
                     b.Navigation("Traveler");
                 });
 
             modelBuilder.Entity("Domain.Entities.Checkpoint", b =>
                 {
+                    b.HasOne("Domain.Entities.Character", null)
+                        .WithMany("Checkpoints")
+                        .HasForeignKey("CharacterId");
+
                     b.HasOne("Domain.Entities.StoryChapter", "StoryChapter")
                         .WithMany()
                         .HasForeignKey("StoryChapterId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Domain.Entities.StoryChapter", null)
+                        .WithMany("Checkpoints")
+                        .HasForeignKey("StoryChapterId1");
+
                     b.Navigation("StoryChapter");
+                });
+
+            modelBuilder.Entity("Domain.Entities.DollToken", b =>
+                {
+                    b.HasOne("Domain.Entities.Product", "Doll")
+                        .WithMany("DollTokens")
+                        .HasForeignKey("DollId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Doll");
                 });
 
             modelBuilder.Entity("Domain.Entities.Stamp", b =>
@@ -1222,17 +1251,6 @@ namespace Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
-            modelBuilder.Entity("Domain.Entities.TravelerBadge", b =>
-                {
-                    b.HasOne("Domain.Entities.Badge", "Badge")
-                        .WithMany()
-                        .HasForeignKey("BadgeId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Badge");
-                });
-
             modelBuilder.Entity("Domain.Entities.TravelerVoucher", b =>
                 {
                     b.HasOne("Domain.Entities.Voucher", "Voucher")
@@ -1246,20 +1264,40 @@ namespace Infrastructure.Migrations
 
             modelBuilder.Entity("Domain.Entities.UserBadge", b =>
                 {
-                    b.HasOne("Domain.Entities.UserGamificationProfile", null)
+                    b.HasOne("Domain.Entities.Badge", "Badge")
+                        .WithMany("UserBadges")
+                        .HasForeignKey("BadgeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.UserGamificationProfile", "Profile")
                         .WithMany("Badges")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Badge");
+
+                    b.Navigation("Profile");
                 });
 
             modelBuilder.Entity("Domain.Entities.UserStamp", b =>
                 {
-                    b.HasOne("Domain.Entities.UserGamificationProfile", null)
+                    b.HasOne("Domain.Entities.Checkpoint", "Checkpoint")
+                        .WithMany()
+                        .HasForeignKey("CheckpointId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.UserGamificationProfile", "Profile")
                         .WithMany("Stamps")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Checkpoint");
+
+                    b.Navigation("Profile");
                 });
 
             modelBuilder.Entity("Domain.Entities.Voucher", b =>
@@ -1282,14 +1320,41 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Entities.Badge", b =>
+                {
+                    b.Navigation("UserBadges");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Character", b =>
+                {
+                    b.Navigation("Checkpoints");
+                });
+
             modelBuilder.Entity("Domain.Entities.ChatSession", b =>
                 {
                     b.Navigation("Messages");
                 });
 
+            modelBuilder.Entity("Domain.Entities.DollToken", b =>
+                {
+                    b.Navigation("CheckinRecords");
+                });
+
             modelBuilder.Entity("Domain.Entities.Partner", b =>
                 {
                     b.Navigation("Vouchers");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Product", b =>
+                {
+                    b.Navigation("Characters");
+
+                    b.Navigation("DollTokens");
+                });
+
+            modelBuilder.Entity("Domain.Entities.StoryChapter", b =>
+                {
+                    b.Navigation("Checkpoints");
                 });
 
             modelBuilder.Entity("Domain.Entities.UserGamificationProfile", b =>

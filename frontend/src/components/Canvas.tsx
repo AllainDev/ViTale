@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { ActiveScreen, ViewMode, HeritageNode, HeritageEdge, ChatMessage } from "../types";
 import { ALL_PRODUCTS } from "../data";
 import { useLanguage } from "../context/LanguageContext";
@@ -45,7 +45,6 @@ import QRScanner from "./QRScanner";
 import { useAuth } from "../context/AuthContext";
 import GoogleLoginButton from "./auth/GoogleLoginButton";
 import FacebookLoginButton from "./auth/FacebookLoginButton";
-import { ChatPanel } from "./Chat/ChatPanel";
 
 const translateAuthError = (err: string, lang: string) => {
   if (lang !== 'vi' || !err) return err;
@@ -138,7 +137,9 @@ export default function Canvas({
       setProfileFullName(""); // reset to prevent flash of old name
       const fetchProfile = async () => {
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'}/auth/profile`, {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+          const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+          const res = await fetch(`${baseUrl}/auth/profile`, {
             credentials: 'include',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('vitale_jwt')}` }
           });
@@ -166,7 +167,9 @@ export default function Canvas({
     setProfileLoading(true);
     setUpdateProfileMessage({ text: "", type: "" });
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'}/auth/profile`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+      const res = await fetch(`${baseUrl}/auth/profile`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
@@ -208,7 +211,9 @@ export default function Canvas({
     setProfileLoading(true);
     setChangePasswordMessage({ text: "", type: "" });
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'}/auth/change-password`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+      const res = await fetch(`${baseUrl}/auth/change-password`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
@@ -260,13 +265,15 @@ export default function Canvas({
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
       const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
       const body = authMode === 'login' 
         ? { email: authEmail.trim(), password: authPassword }
         : { email: authEmail.trim(), password: authPassword, fullName: authFullName.trim() };
 
-      const res = await fetch(`${apiUrl}${endpoint}`, {
+      const res = await fetch(`${baseUrl}${endpoint}`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -291,6 +298,7 @@ export default function Canvas({
 
       if (authMode === 'login' && data.token) {
         setJwt(data.token);
+        localStorage.setItem('vitale_jwt', data.token);
         if (data.user) {
           setProfileFullName(data.user.fullName);
           setProfileHasPassword(data.user.hasPassword);
@@ -318,7 +326,9 @@ export default function Canvas({
   // Collections from API
   const [apiProducts, setApiProducts] = useState<any[]>([]);
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/collections`)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+    const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+    fetch(`${baseUrl}/collections`, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setApiProducts(data); })
       .catch(() => {}); // Fallback to static data silently
@@ -339,7 +349,7 @@ export default function Canvas({
     {
       id: "1",
       role: "assistant",
-      text: "Xin chào quý khách! Mai rất hân hạnh được chào mừng bạn đến với VITALE. Hiện tại bạn đang dừng chân gần hồ Hoàn Kiếm linh thiêng phải không ạ? Mai có thể chia sẻ câu chuyện gì để sưởi ấm hành trình di sản của bạn hôm nay thế?",
+      text: "Xin chào quý khách! To Nu rất hân hạnh được chào mừng bạn đến với VITALE. Hiện tại bạn đang dừng chân gần hồ Hoàn Kiếm linh thiêng phải không ạ? To Nu có thể chia sẻ câu chuyện gì để sưởi ấm hành trình di sản của bạn hôm nay thế?",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -358,13 +368,6 @@ export default function Canvas({
 
   useEffect(() => {
     if (activeScreen === "assistant" && user) {
-      // Dev bypass: skip the gamification/doll check and unlock chat immediately.
-      const isDev = typeof window !== 'undefined'
-        && new URLSearchParams(window.location.search).get('dev') === '1';
-      if (isDev) {
-        setChatBlocked(false);
-        return;
-      }
       gamificationApi.getStatus().then(status => {
         if (!status.ownedDolls || status.ownedDolls.length === 0) {
           setChatBlocked(true);
@@ -400,7 +403,7 @@ export default function Canvas({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeScreen]);
 
-  // Handle Mai Chat sending
+  // Handle To Nu Chat sending
   const handleSendChatMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!chatInput.trim()) return;
@@ -531,7 +534,7 @@ export default function Canvas({
                 <span className={currentLanguage === 'en' ? 'text-stone-900 z-10' : 'text-stone-400 z-10'}>EN</span>
               </div>
             </button>
-            {user ? (
+            {user?.isRegistered ? (
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -560,12 +563,17 @@ export default function Canvas({
                         <User size={13} className="text-amber-600" />Hồ sơ của tôi
                       </button>
 
-                      <button 
-                        onClick={() => { setShowQRScanner(true); setProfileMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2"
-                      >
-                        <QrCode size={13} className="text-emerald-600" />Quét QR búp bê
-                      </button>
+                      {user?.isRegistered && (
+                        <button 
+                          onClick={() => { 
+                            setShowQRScanner(true); 
+                            setProfileMenuOpen(false); 
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2"
+                        >
+                          <QrCode size={13} className="text-emerald-600" />Quét QR búp bê
+                        </button>
+                      )}
                       <div className="h-px bg-stone-100 mx-3" />
                       <button 
                         onClick={() => { logout(); setProfileMenuOpen(false); }}
@@ -612,7 +620,7 @@ export default function Canvas({
               }}
             >
               <span>{item.label}</span>
-              {(item.id === 'passport' || item.id === 'assistant') && !user && (
+              {(item.id === 'assistant') && !user?.isRegistered && (
                 <Lock size={9} className="text-stone-400" />
               )}
               {activeScreen === item.id && (
@@ -637,7 +645,7 @@ export default function Canvas({
             </div>
           </button>
           
-          {user ? (
+          {user?.isRegistered ? (
             <div className="relative">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -683,13 +691,15 @@ export default function Canvas({
                       <ChevronRight size={14} className="text-stone-300" />
                     </button>
 
-                    <button 
-                      onClick={() => { setShowQRScanner(true); setProfileMenuOpen(false); }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2"><QrCode size={14} className="text-emerald-600" />Quét QR búp bê</span>
-                      <ChevronRight size={14} className="text-stone-300" />
-                    </button>
+                    {user?.isRegistered && (
+                      <button 
+                        onClick={() => { setShowQRScanner(true); setProfileMenuOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2"><QrCode size={14} className="text-emerald-600" />Quét QR búp bê</span>
+                        <ChevronRight size={14} className="text-stone-300" />
+                      </button>
+                    )}
                     <div className="h-px bg-stone-100 mx-3" />
                     <button 
                       onClick={() => { logout(); setProfileMenuOpen(false); }}
@@ -930,56 +940,13 @@ export default function Canvas({
                 </p>
               </div>
 
-              {/* Advanced Filter Toolbar */}
-              <div className="border-y border-stone-200/80 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs font-semibold text-stone-600">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="uppercase text-[10px] text-stone-400 font-mono font-bold mr-2">{t.region}:</span>
-                  {["All", "Northern", "Central", "Southern"].map(reg => (
-                    <button
-                      key={reg}
-                      onClick={() => setSelectedRegion(reg)}
-                      className={`px-3 py-1.5 rounded-full border transition-all ${
-                        selectedRegion === reg 
-                          ? "text-white" 
-                          : "border-stone-200 hover:border-stone-400 text-stone-600"
-                      }`}
-                      style={{
-                        backgroundColor: selectedRegion === reg ? brandTheme.primaryColor : "transparent",
-                        borderColor: selectedRegion === reg ? brandTheme.primaryColor : "#e5e7eb"
-                      }}
-                    >
-                      {reg}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="uppercase text-[10px] text-stone-400 font-mono font-bold mr-2">{t.material}:</span>
-                  {["All", "Organic Cotton", "Recycled Paper", "Silk"].map(mat => (
-                    <button
-                      key={mat}
-                      onClick={() => setSelectedMaterial(mat)}
-                      className={`px-3 py-1.5 rounded-full border transition-all ${
-                        selectedMaterial === mat 
-                          ? "text-white" 
-                          : "border-stone-200 hover:border-stone-400 text-stone-600"
-                      }`}
-                      style={{
-                        backgroundColor: selectedMaterial === mat ? brandTheme.secondaryColor : "transparent",
-                        borderColor: selectedMaterial === mat ? brandTheme.secondaryColor : "#e5e7eb"
-                      }}
-                    >
-                      {mat}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Region filter removed: collection items are now driven by the
+                  admin-managed data via /api/v1/collections. Showing every item
+                  below so the storefront always mirrors the admin catalog. */}
 
               {/* Product list */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {products
-                  .filter((prod: any) => selectedRegion === "All" || prod.region === selectedRegion)
-                  .filter((prod: any) => selectedMaterial === "All" || prod.material === selectedMaterial)
                   .map((prod: any) => {
                     const priceVal = prices[prod.id] || prod.price;
                     return (
@@ -993,10 +960,7 @@ export default function Canvas({
                             alt={prod.title || prod.name} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full border text-[9px] font-bold flex items-center gap-1.5 shadow-sm">
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: brandTheme.secondaryColor }} />
-                            <span>{prod.region} Vietnam</span>
-                          </div>
+                          
                           {prod.badge && (
                             <div className="absolute top-3 right-3 bg-emerald-700 text-white px-2.5 py-1 rounded-full text-[9px] font-bold">
                               {prod.badge}
@@ -1057,23 +1021,23 @@ export default function Canvas({
           {/* ========================================================= */}
           {/* SCREEN 4: 3D ASSISTANT CHAT SCREEN (Màn hình 3)            */}
           {/* ========================================================= */}
-          {activeScreen === "assistant" && (!user || chatBlocked) && (
+          {activeScreen === "assistant" && (!user?.isRegistered || chatBlocked) && (
             <div className="flex flex-col items-center justify-center min-h-[480px] p-10 animate-fadeIn text-center gap-6">
               <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center">
                 <Bot className="w-9 h-9 text-emerald-700" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Nàng Mai</h2>
+                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Tô Nữ</h2>
                 <p className="text-stone-500 text-sm leading-relaxed">
-                  {!user
-                    ? "Đăng nhập để trò chuyện cùng Nàng Mai — trợ lý AI di sản văn hoá Việt Nam của bạn."
+                  {!user?.isRegistered 
+                    ? "Đăng nhập để trò chuyện cùng Nàng Tô Nữ — trợ lý AI di sản văn hoá Việt Nam của bạn."
                     : "Tài khoản của bạn chưa sở hữu bất kỳ Nhân vật 3D nào. Hãy sưu tầm Búp bê và quét mã QR để mở khóa tính năng Chat nhé!"
                   }
                 </p>
               </div>
               <button
                 onClick={() => { 
-                  if (!user) {
+                  if (!user?.isRegistered) {
                     setAuthMode("login"); setActiveScreen("auth");
                   } else {
                     setShowQRScanner(true);
@@ -1082,37 +1046,115 @@ export default function Canvas({
                 className="px-8 py-3 rounded-full text-sm font-bold text-white shadow-lg hover:scale-105 transition-all"
                 style={{ backgroundColor: brandTheme.primaryColor }}
               >
-                {!user ? "Đăng nhập ngay" : "Quét mã QR ngay"}
+                {!user?.isRegistered ? "Đăng nhập ngay" : "Quét mã QR ngay"}
               </button>
             </div>
           )}
-          {activeScreen === "assistant" && user && !chatBlocked && (
+          {activeScreen === "assistant" && user?.isRegistered && !chatBlocked && (
             <div className="w-full h-[75vh] min-h-[600px] max-h-[900px] relative overflow-hidden animate-fadeIn flex flex-col md:flex-row" style={{ background: `linear-gradient(135deg, ${brandTheme.primaryColor} 0%, #1c2a1e 100%)` }}>
-
+              
               {/* Top Status Bar */}
               <div className="absolute top-0 left-0 z-20 p-6 pointer-events-none">
                 <div className="bg-black/30 backdrop-blur-xl border border-white/20 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-xl">
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Nàng Mai · AI Heritage Guide</span>
+                  <span>Nàng Tô Nữ · AI Heritage Guide</span>
                 </div>
               </div>
 
               {/* Left Side: 3D Avatar */}
-              <div className="md:w-1/2 h-1/2 md:h-full relative z-0">
+              <div className="w-full md:w-1/2 h-[350px] md:h-auto relative z-0">
                 <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(ellipse at 50% 100%, #a8e0b0 0%, transparent 70%)' }} />
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/20 z-10 pointer-events-none hidden md:block" />
                 <div className="absolute inset-0 z-0 w-full h-full">
-                  <AvatarRenderer
+                  <AvatarRenderer 
                     lipsSyncEngine={null}
-                    animationTag={animTag}
-                    onAvatarLoaded={() => setAvatarLoaded(true)}
+                    animationTag={animTag} 
+                    onAvatarLoaded={() => setAvatarLoaded(true)} 
                   />
                 </div>
               </div>
 
-              {/* Right Side: New ChatPanel */}
-              <div className="md:w-1/2 h-1/2 md:h-full border-l border-stone-200 bg-white">
-                <ChatPanel />
+              {/* Right Side: Chat UI Area */}
+              <div className="w-full md:w-1/2 flex flex-col justify-end p-4 md:p-8 md:pl-0 z-20 h-auto md:h-full">
+                
+                <div className="w-full h-full flex flex-col justify-end max-h-[70vh] md:max-h-full">
+                  
+                  {/* Messages Scroll Area */}
+                  <div 
+                    className="flex-1 overflow-y-auto pr-4 space-y-6 scrollbar-hide flex flex-col"
+                    style={{ 
+                      WebkitMaskImage: 'linear-gradient(to top, black 85%, transparent 100%)',
+                      maskImage: 'linear-gradient(to top, black 85%, transparent 100%)'
+                    }}
+                  >
+                    <div className="mt-auto flex flex-col gap-6 pt-20">
+                      {chatHistory.map((item) => {
+                        const isAi = item.role === "assistant";
+                        return (
+                          <div 
+                            key={item.id} 
+                            className={`flex gap-3 w-full ${isAi ? "justify-start" : "justify-end"}`}
+                          >
+                            {isAi && (
+                              <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-lg font-serif font-black text-sm bg-black/50 backdrop-blur-xl border border-white/20 text-amber-200">
+                                Tô
+                              </div>
+                            )}
+                            <div 
+                              className={`max-w-[85%] md:max-w-[80%] rounded-2xl p-4 text-sm leading-relaxed shadow-2xl backdrop-blur-xl border ${
+                                isAi 
+                                  ? "bg-black/50 text-stone-100 border-white/10 rounded-tl-sm" 
+                                  : "bg-emerald-600/90 text-white border-emerald-400/30 rounded-tr-sm"
+                              }`}
+                            >
+                              <p className="whitespace-pre-wrap drop-shadow-sm">{item.text}</p>
+                              <span className={`text-[10px] font-medium block mt-2 text-right opacity-60`}>
+                                {item.timestamp}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Typing indicator */}
+                      {isTyping && (
+                        <div className="flex gap-3 w-full justify-start animate-fadeIn">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-lg font-serif font-black text-sm bg-black/50 backdrop-blur-xl border border-white/20 text-amber-200 animate-pulse">
+                            Tô
+                          </div>
+                          <div className="bg-black/50 backdrop-blur-xl text-stone-300 border border-white/10 p-4 rounded-2xl rounded-tl-sm text-sm flex items-center gap-1 shadow-2xl">
+                            <span className="animate-bounce font-black">.</span>
+                            <span className="animate-bounce [animation-delay:0.2s] font-black">.</span>
+                            <span className="animate-bounce [animation-delay:0.4s] font-black">.</span>
+                          </div>
+                        </div>
+                      )}
+                      <div ref={chatBottomRef} />
+                    </div>
+                  </div>
+
+                  {/* Send Action Bar */}
+                  <form 
+                    onSubmit={handleSendChatMessage}
+                    className="mt-4 bg-black/50 backdrop-blur-2xl border border-white/20 rounded-2xl p-2.5 flex gap-3 shadow-2xl transition-all focus-within:bg-black/60 focus-within:border-emerald-500/50 shrink-0"
+                  >
+                    <input
+                      type="text"
+                      value={chatInput}
+                      onChange={(e) => setChatInput(e.target.value)}
+                      placeholder={currentLanguage === 'vi' ? "Hỏi Tô Nữ về Hồ Hoàn Kiếm, Huế, Sài Gòn, Sapa..." : "Ask To Nu about Hoan Kiem Lake, Hue, Saigon, Sapa..."}
+                      className="flex-1 text-[15px] font-medium bg-transparent text-white placeholder-stone-400/80 px-4 py-2 focus:outline-none"
+                    />
+                    <button
+                      type="submit"
+                      disabled={!chatInput.trim() || isTyping}
+                      className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 disabled:opacity-50 disabled:pointer-events-none text-white transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-[0_0_20px_rgba(52,211,153,0.3)]"
+                    >
+                      <Send className="w-5 h-5 ml-1" />
+                    </button>
+                  </form>
+
+                </div>
               </div>
             </div>
           )}
@@ -1445,7 +1487,21 @@ export default function Canvas({
                 <div className="bg-white rounded-3xl border border-stone-200 p-6 md:p-8 shadow-sm">
                   <h2 className="text-lg font-serif font-black text-stone-800 mb-4">{t.profile_alt?.accountInfo || "Cài đặt tài khoản"}</h2>
                   
-                  <form onSubmit={handleUpdateProfile} noValidate className="space-y-4 mb-8">
+                  {!user.isRegistered ? (
+                    <div className="bg-amber-50 rounded-2xl p-6 text-center">
+                      <p className="text-stone-700 font-medium mb-4">
+                        Bạn đang sử dụng tài khoản khách. Đăng ký ngay để lưu giữ hành trình và bảo vệ tài sản của bạn!
+                      </p>
+                      <button
+                        onClick={() => { setActiveScreen("auth"); setAuthMode("register"); setProfileMenuOpen(false); }}
+                        className="px-6 py-2 bg-amber-600 text-white rounded-full font-bold hover:bg-amber-700 transition-colors"
+                      >
+                        Đăng ký / Đăng nhập
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <form onSubmit={handleUpdateProfile} noValidate className="space-y-4 mb-8">
                     {updateProfileMessage.text && (
                       <div className={`p-3 rounded-xl mb-4 text-sm font-medium ${updateProfileMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                         {updateProfileMessage.text}
@@ -1522,6 +1578,8 @@ export default function Canvas({
                       </form>
                     </>
                   )}
+                  </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1556,6 +1614,7 @@ export default function Canvas({
                 if (res.success) {
                   const bonusText = res.retroactiveBonusAwarded ? ` +${res.xpAwarded} XP Hồi tố!` : "";
                   triggerToast(`🎉 Thu thập thành công ${res.dollName}!${bonusText}`);
+                  setChatBlocked(false);
                 }
               } catch (e: any) {
                 triggerToast(`Lỗi: ${e.message}`);
@@ -1570,4 +1629,9 @@ export default function Canvas({
       </div>
     );
   }
+
+
+
+
+
 
