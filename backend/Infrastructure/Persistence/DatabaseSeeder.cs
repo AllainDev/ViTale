@@ -21,7 +21,16 @@ public static class DatabaseSeeder
         .Select(i => Guid.Parse($"33333333-0000-0000-0000-{i:D12}"))
         .ToArray();
 
-    public static async Task SeedAsync(ApplicationDbContext db)
+    // ── Pre-defined GUIDs for dev seed (idempotent across re-runs) ─────────────
+    private static readonly Guid DevAccountId   = Guid.Parse("99999999-0000-0000-0000-000000000001");
+    private static readonly Guid DevTravelerId  = Guid.Parse("99999999-0000-0000-0000-000000000002");
+    private static readonly Guid DevDollId      = Guid.Parse("99999999-0000-0000-0000-000000000003");
+    private static readonly Guid DevDollTokenId = Guid.Parse("99999999-0000-0000-0000-000000000004");
+
+    private const string DevEmail    = "dev@vitale.vn";
+    private const string DevPassword = "DevPass123!";
+
+    public static async Task SeedAsync(ApplicationDbContext db, bool isDevelopment = false)
     {
         // Add required PostGIS extension
         await db.Database.ExecuteSqlRawAsync("CREATE EXTENSION IF NOT EXISTS postgis;");
@@ -33,7 +42,91 @@ public static class DatabaseSeeder
         await SeedPartnersAsync(db);
         await SeedCollectionsAsync(db);
         await SeedAdminUserAsync(db);
+
+        if (isDevelopment)
+        {
+            await SeedDevUserAsync(db);
+        }
+
         await db.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// Seeds a pre-verified dev user with one pre-owned doll so the developer can
+    /// land directly on the 3D Assistant screen via <c>?screen=assistant&amp;dev=1</c>
+    /// without scanning a QR code. Only runs when <c>isDevelopment</c> is true.
+    /// </summary>
+    private static async Task SeedDevUserAsync(ApplicationDbContext db)
+    {
+        // Idempotent: only skip if the full dev seed already exists (doll token present).
+        // This handles partial seeds from previous failed runs.
+        var existingDollToken = await db.DollTokens
+            .AnyAsync(t => t.Token == "VID-DEV-0000-0000-0000-0000-0000-0001");
+        if (existingDollToken) return;
+
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(DevPassword, workFactor: 12);
+        var now = DateTime.UtcNow;
+
+        // 1. Pre-verified PassportAccount
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO passport_accounts
+                (id, email, password_hash, full_name, is_email_verified,
+                 email_verification_token, email_verification_token_expires_at,
+                 password_reset_token, password_reset_token_expires_at,
+                 created_at, is_locked)
+            VALUES
+                ({0}, {1}, {2}, {3}, true,
+                 NULL, NULL,
+                 NULL, NULL,
+                 {4}, false)
+            ON CONFLICT (id) DO NOTHING
+            """,
+            DevAccountId, DevEmail, passwordHash, "Dev User", now);
+
+        // 2. Traveler linked to the dev account
+        var devPreferencesJson = "{\"preferredLanguage\":\"vi\",\"notificationsEnabled\":true}";
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO travelers
+                (id, anonymous_id, linked_account_id, preferences, created_at)
+            VALUES
+                ({0}, {1}, {2},
+                 CAST({3} AS jsonb),
+                 {4})
+            ON CONFLICT (id) DO NOTHING
+            """,
+            DevTravelerId, "dev-traveler", DevAccountId, devPreferencesJson, now);
+
+        // 3. Doll model (Product) — required so DollToken.DollId FK is satisfied
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO products (id, sku, product_type, region, created_at)
+            VALUES ({0}, {1}, 'Doll', 'VN-HN', {2})
+            ON CONFLICT (id) DO NOTHING
+            """,
+            DevDollId, "DEV-DOLL-HN-001", now);
+
+        // 4. Pre-claimed DollToken for the dev traveler
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO doll_tokens
+                (id, token, doll_id, user_id, generated_at, claimed_at,
+                 expires_at, is_used, used_at, row_version)
+            VALUES
+                ({0}, {1}, {2}, {3}, {4}, {4},
+                 NULL, false, NULL, {5})
+            ON CONFLICT (id) DO NOTHING
+            """,
+            DevDollTokenId, "VID-DEV-0000-0000-0000-0000-0000-0001",
+            DevDollId, DevTravelerId, now, Guid.NewGuid().ToByteArray());
+
+        // 5. Gamification profile for the dev traveler
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO user_gamification_profiles
+                (id, user_id, total_xp, current_level, checkins_count,
+                 stamps_unlocked, badges_earned, created_at, last_updated_at, row_version)
+            VALUES
+                (gen_random_uuid(), {0}, 0, 0, 0, 0, 0, {1}, {1}, {2})
+            ON CONFLICT (user_id) DO NOTHING
+            """,
+            DevTravelerId, now, Guid.NewGuid().ToByteArray());
     }
 
     private static async Task SeedAdminUserAsync(ApplicationDbContext db)
@@ -67,14 +160,17 @@ public static class DatabaseSeeder
         await db.Database.ExecuteSqlRawAsync("""
             INSERT INTO characters (id, name, region, model_url, animation_clips, description)
             VALUES ({0}, {1}, {2}, {3}, {4}::jsonb, {5})
-            ON CONFLICT (id) DO UPDATE SET model_url = EXCLUDED.model_url
+            ON CONFLICT (id) DO UPDATE SET
+                name = EXCLUDED.name,
+                model_url = EXCLUDED.model_url,
+                description = EXCLUDED.description
             """,
             HanoiCharacterId,
-            "Thăng Long Princess",
+            "Nàng Mai",
             "VN-HN",
             "/models/avatar.glb",
             animationClips.RootElement.GetRawText(),
-            "A legendary princess from the Lý Dynasty who guards the secrets of Thăng Long Citadel.");
+            "Nàng Mai — hướng dẫn viên AI văn hoá Hà Nội, am hiểu 36 phố phường, ẩm thực vỉa hè và lịch sử nghìn năm Thăng Long.");
     }
 
     private static async Task SeedStoryChaptersAsync(ApplicationDbContext db)

@@ -339,7 +339,7 @@ export default function Canvas({
     {
       id: "1",
       role: "assistant",
-      text: "Xin chào quý khách! To Nu rất hân hạnh được chào mừng bạn đến với VITALE. Hiện tại bạn đang dừng chân gần hồ Hoàn Kiếm linh thiêng phải không ạ? To Nu có thể chia sẻ câu chuyện gì để sưởi ấm hành trình di sản của bạn hôm nay thế?",
+      text: "Xin chào quý khách! Mai rất hân hạnh được chào mừng bạn đến với VITALE. Hiện tại bạn đang dừng chân gần hồ Hoàn Kiếm linh thiêng phải không ạ? Mai có thể chia sẻ câu chuyện gì để sưởi ấm hành trình di sản của bạn hôm nay thế?",
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -400,7 +400,7 @@ export default function Canvas({
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeScreen]);
 
-  // Handle To Nu Chat sending
+  // Handle Mai Chat sending
   const handleSendChatMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!chatInput.trim()) return;
@@ -1063,10 +1063,10 @@ export default function Canvas({
                 <Bot className="w-9 h-9 text-emerald-700" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Tô Nữ</h2>
+                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Nàng Mai</h2>
                 <p className="text-stone-500 text-sm leading-relaxed">
-                  {!user 
-                    ? "Đăng nhập để trò chuyện cùng Nàng Tô Nữ — trợ lý AI di sản văn hoá Việt Nam của bạn."
+                  {!user
+                    ? "Đăng nhập để trò chuyện cùng Nàng Mai — trợ lý AI di sản văn hoá Việt Nam của bạn."
                     : "Tài khoản của bạn chưa sở hữu bất kỳ Nhân vật 3D nào. Hãy sưu tầm Búp bê và quét mã QR để mở khóa tính năng Chat nhé!"
                   }
                 </p>
@@ -1093,7 +1093,7 @@ export default function Canvas({
               <div className="absolute top-0 left-0 z-20 p-6 pointer-events-none">
                 <div className="bg-black/30 backdrop-blur-xl border border-white/20 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-xl">
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Nàng Tô Nữ · AI Heritage Guide</span>
+                  <span>Nàng Mai · AI Heritage Guide</span>
                 </div>
               </div>
 
