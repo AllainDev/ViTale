@@ -20,8 +20,11 @@ static async Task<int> MainAsync(string[] args)
 
     var topicsJsonPath = Path.Combine(AppContext.BaseDirectory, "topics.json");
     var topicsRaw = await File.ReadAllTextAsync(topicsJsonPath);
-    var topics = JsonSerializer.Deserialize<List<TopicConfig>>(topicsRaw)
-        ?? throw new InvalidOperationException("topics.json empty");
+    var topics = JsonSerializer.Deserialize<List<TopicConfig>>(topicsRaw, new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
+    }) ?? throw new InvalidOperationException("topics.json empty");
+    Console.WriteLine($"Loaded {topics.Count} topics.");
 
     var options = new DbContextOptionsBuilder<ApplicationDbContext>()
         .UseNpgsql(connectionString)
@@ -77,7 +80,7 @@ static async Task<int> MainAsync(string[] args)
             catch (Exception ex)
             {
                 totalErrors++;
-                Console.Error.WriteLine($"ERR:  {topic.Topic} ({lang}) — {ex.Message}");
+                Console.Error.WriteLine($"ERR:  {topic.Topic} ({lang}) — {ex.GetType().Name}: {ex.Message}");
             }
         }
     }
@@ -140,11 +143,15 @@ Output STRICT JSON in this exact format (no markdown, no commentary):
     }
 
     response!.EnsureSuccessStatusCode();
-    var result = await response.Content.ReadFromJsonAsync<GroqResponse>()
-        ?? throw new InvalidOperationException("Empty response body");
-    var text = result.choices?.FirstOrDefault()?.message?.content;
+    var rawBody = await response.Content.ReadAsStringAsync();
+    var result = JsonSerializer.Deserialize<GroqResponse>(rawBody, new JsonSerializerOptions
+    {
+        PropertyNameCaseInsensitive = true
+    }) ?? throw new InvalidOperationException("Empty response body");
+    var text = result.choices?.FirstOrDefault()?.message?.content
+        ?? throw new InvalidOperationException("Empty content");
     if (string.IsNullOrWhiteSpace(text))
-        throw new InvalidOperationException("Empty response content");
+        throw new InvalidOperationException("Empty content");
 
     // Strip markdown code fences if present
     text = text.Trim();
@@ -154,13 +161,17 @@ Output STRICT JSON in this exact format (no markdown, no commentary):
     var parsed = JsonDocument.Parse(text);
     var pairs = parsed.RootElement.GetProperty("pairs");
 
-    return pairs.EnumerateArray()
-        .Select(p => new QAPair(
-            Question: p.GetProperty("question").GetString() ?? "",
-            Answer: p.GetProperty("answer").GetString() ?? "",
-            Keywords: p.TryGetProperty("keywords", out var k) ? k.GetString() : null
-        ))
-        .ToList();
+    var pairsList = new List<QAPair>();
+    foreach (var p in pairs.EnumerateArray())
+    {
+        var q = p.GetProperty("question").GetString() ?? "";
+        var a = p.GetProperty("answer").GetString() ?? "";
+        string? kw = null;
+        if (p.TryGetProperty("keywords", out var k) && k.ValueKind != JsonValueKind.Null)
+            kw = k.GetString();
+        pairsList.Add(new QAPair(q, a, kw));
+    }
+    return pairsList;
 }
 
 // === Local helpers ===
