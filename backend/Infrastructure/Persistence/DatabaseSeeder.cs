@@ -54,10 +54,8 @@ public static class DatabaseSeeder
         await SeedProductsAsync(db);
         await SeedAdminUserAsync(db);
 
-        if (isDevelopment)
-        {
-            await SeedDevUserAsync(db);
-        }
+        // Tạm thời seed tài khoản dev@vitale.vn ở cả môi trường thật để bạn test
+        await SeedDevUserAsync(db);
 
         await db.SaveChangesAsync();
     }
