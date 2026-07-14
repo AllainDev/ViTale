@@ -32,6 +32,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<XpTransaction> XpTransactions => Set<XpTransaction>();
     public DbSet<UserStamp> UserStamps => Set<UserStamp>();
     public DbSet<UserBadge> UserBadges => Set<UserBadge>();
+    public DbSet<HanoiKnowledge> HanoiKnowledges => Set<HanoiKnowledge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -481,6 +482,28 @@ public class ApplicationDbContext : DbContext
             e.HasIndex(x => new { x.UserId, x.BadgeId }).IsUnique()
              .HasDatabaseName("idx_user_badges_user_badge");
             e.HasIndex(x => x.UserId).HasDatabaseName("idx_user_badges_user_id");
+        });
+
+        // ── HanoiKnowledge ──────────────────────────────────────
+        modelBuilder.Entity<HanoiKnowledge>(e =>
+        {
+            e.ToTable("hanoi_knowledge");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Category).HasColumnName("category").HasMaxLength(50).IsRequired();
+            e.Property(x => x.Topic).HasColumnName("topic").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Question).HasColumnName("question").IsRequired();
+            e.Property(x => x.Answer).HasColumnName("answer").IsRequired();
+            e.Property(x => x.Keywords).HasColumnName("keywords");
+            e.Property(x => x.Language).HasColumnName("language").HasMaxLength(2).IsRequired();
+            e.Property(x => x.Source).HasColumnName("source").HasMaxLength(200);
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.Language).HasDatabaseName("idx_hanoi_knowledge_lang")
+                .HasFilter("is_active = true");
+            e.HasIndex(x => x.Category).HasDatabaseName("idx_hanoi_knowledge_category")
+                .HasFilter("is_active = true");
         });
     }
 }
