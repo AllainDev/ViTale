@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Map, Search, Edit2, Trash2, X, Plus, ToggleLeft, ToggleRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { Map, Search, Edit2, Trash2, X, Plus, ToggleLeft, ToggleRight, ChevronUp, ChevronDown, RefreshCw } from 'lucide-react';
 
 type Region = {
   id: string;
@@ -50,6 +50,7 @@ export default function AdminRegionsPage() {
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setToast({ text, type });
@@ -153,6 +154,24 @@ export default function AdminRegionsPage() {
     } catch { /* non-critical */ }
   };
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/regions/sync-from-legacy`, {
+        method: 'POST',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Sync xong! Tạo ${data.regionsCreated} khu vực, liên kết ${data.entitiesLinked} địa điểm/nhân vật/sản phẩm.`);
+        fetchRegions();
+      } else {
+        showToast('Sync thất bại.', 'error');
+      }
+    } catch { showToast('Không thể kết nối server.', 'error'); }
+    setIsSyncing(false);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -166,14 +185,26 @@ export default function AdminRegionsPage() {
             <p className="text-sm text-gray-500">{regions.length} khu vực</p>
           </div>
         </div>
-        <button
-          id="btn-create-region"
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Thêm khu vực
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            id="btn-sync-regions"
+            onClick={handleSync}
+            disabled={isSyncing}
+            title="Tự động tạo khu vực từ dữ liệu hiện có"
+            className="flex items-center gap-2 px-3 py-2 border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg font-medium transition-colors text-sm disabled:opacity-60"
+          >
+            <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+            {isSyncing ? 'Đang sync...' : 'Sync từ dữ liệu cũ'}
+          </button>
+          <button
+            id="btn-create-region"
+            onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Thêm khu vực
+          </button>
+        </div>
       </div>
 
       {/* Filters */}

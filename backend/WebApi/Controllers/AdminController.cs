@@ -673,6 +673,164 @@ public class AdminController : ControllerBase
 
     // \u2500\u2500 Region management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
+    /// <summary>
+    /// POST /api/v1/admin/regions/sync-from-legacy
+    /// One-time utility: auto-creates Region entities from the free-text region strings
+    /// already stored on checkpoints, characters, and products, then links region_id FKs.
+    /// Safe to call multiple times (idempotent — skips existing names).
+    /// </summary>
+    [HttpPost("regions/sync-from-legacy")]
+    public async Task<IActionResult> SyncRegionsFromLegacy(CancellationToken ct)
+    {
+        // Collect all distinct non-empty region strings across the three tables
+        var checkpointRegions = await _uow.Checkpoints.Query()
+            .AsNoTracking()
+            .Where(c => c.Region != null && c.Region.Trim() != string.Empty)
+            .Select(c => c.Region.Trim())
+            .Distinct()
+            .ToListAsync(ct);
+
+        var characterRegions = await _uow.Characters.Query()
+            .AsNoTracking()
+            .Where(c => !c.IsDeleted && c.Region != null && c.Region.Trim() != string.Empty)
+            .Select(c => c.Region.Trim())
+            .Distinct()
+            .ToListAsync(ct);
+
+        var productRegions = await _uow.Products.Query()
+            .AsNoTracking()
+            .Where(p => !p.IsDeleted && p.Region != null && p.Region.Trim() != string.Empty)
+            .Select(p => p.Region.Trim())
+            .Distinct()
+            .ToListAsync(ct);
+
+        var allDistinct = checkpointRegions
+            .Concat(characterRegions)
+            .Concat(productRegions)
+            .Where(r => !string.IsNullOrWhiteSpace(r))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(r => r)
+            .ToList();
+
+        // Fetch existing region names to avoid duplicates
+        var existing = await _uow.Regions.Query()
+            .AsNoTracking()
+            .Select(r => r.Name.ToLower())
+            .ToListAsync(ct);
+
+        int created = 0;
+        int sortOrder = existing.Count;
+        var createdRegions = new List<Domain.Entities.Region>();
+
+        foreach (var name in allDistinct)
+        {
+            if (existing.Contains(name.ToLower())) continue;
+
+            // Generate a simple URL-safe slug using ASCII replacement
+            var slug = GenerateSlug(name) + "-" + Guid.NewGuid().ToString("N")[..6];
+            var region = Domain.Entities.Region.Create(name, slug, description: null, sortOrder: sortOrder++);
+            _uow.Regions.Add(region);
+            createdRegions.Add(region);
+            created++;
+        }
+
+        if (created > 0)
+            await _uow.SaveChangesAsync(ct);
+
+        // Now link region_id on all entities that still have null region_id
+        var allRegions = await _uow.Regions.Query().AsNoTracking().ToListAsync(ct);
+        int linked = 0;
+
+        // Link checkpoints
+        var unlinkedCheckpoints = await _uow.Checkpoints.Query()
+            .Where(c => c.RegionId == null && c.Region != null && c.Region.Trim() != string.Empty)
+            .ToListAsync(ct);
+
+        foreach (var cp in unlinkedCheckpoints)
+        {
+            var match = allRegions.FirstOrDefault(r =>
+                string.Equals(r.Name.Trim(), cp.Region.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match != null) { cp.Update(cp.Name, cp.Region, cp.StoryAssetUrl, cp.IsActive, match.Id); linked++; }
+        }
+
+        // Link characters
+        var unlinkedChars = await _uow.Characters.Query()
+            .Where(c => !c.IsDeleted && c.RegionId == null && c.Region != null && c.Region.Trim() != string.Empty)
+            .ToListAsync(ct);
+
+        foreach (var ch in unlinkedChars)
+        {
+            var match = allRegions.FirstOrDefault(r =>
+                string.Equals(r.Name.Trim(), ch.Region.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match != null) { ch.Update(ch.Name, ch.Region, ch.ModelUrl, ch.Description, match.Id); linked++; }
+        }
+
+        // Link products
+        var unlinkedProducts = await _uow.Products.Query()
+            .Where(p => !p.IsDeleted && p.RegionId == null && p.Region != null && p.Region.Trim() != string.Empty)
+            .ToListAsync(ct);
+
+        foreach (var prod in unlinkedProducts)
+        {
+            var match = allRegions.FirstOrDefault(r =>
+                string.Equals(r.Name.Trim(), prod.Region.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (match != null) { prod.LinkRegion(match.Id); linked++; }
+        }
+
+        if (linked > 0)
+            await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Region sync: created={Created}, linked={Linked}", created, linked);
+        return Ok(new
+        {
+            message = "Sync completed.",
+            regionsCreated = created,
+            entitiesLinked = linked,
+            totalRegions = allRegions.Count + created
+        });
+    }
+
+    /// <summary>Converts a display name to a URL-safe ASCII slug.</summary>
+    private static string GenerateSlug(string name)
+    {
+        // Basic Vietnamese character map
+        var map = new Dictionary<char, string>
+        {
+            ['à'] = "a", ['á'] = "a", ['ả'] = "a", ['ã'] = "a", ['ạ'] = "a",
+            ['ă'] = "a", ['ắ'] = "a", ['ặ'] = "a", ['ầ'] = "a", ['ẩ'] = "a",
+            ['ẫ'] = "a", ['ậ'] = "a", ['â'] = "a", ['ấ'] = "a",
+            ['è'] = "e", ['é'] = "e", ['ẻ'] = "e", ['ẽ'] = "e", ['ẹ'] = "e",
+            ['ề'] = "e", ['ế'] = "e", ['ệ'] = "e", ['ể'] = "e", ['ễ'] = "e", ['ê'] = "e",
+            ['ì'] = "i", ['í'] = "i", ['ỉ'] = "i", ['ĩ'] = "i", ['ị'] = "i",
+            ['ò'] = "o", ['ó'] = "o", ['ỏ'] = "o", ['õ'] = "o", ['ọ'] = "o",
+            ['ô'] = "o", ['ồ'] = "o", ['ố'] = "o", ['ổ'] = "o", ['ỗ'] = "o", ['ộ'] = "o",
+            ['ơ'] = "o", ['ờ'] = "o", ['ớ'] = "o", ['ở'] = "o", ['ỡ'] = "o", ['ợ'] = "o",
+            ['ù'] = "u", ['ú'] = "u", ['ủ'] = "u", ['ũ'] = "u", ['ụ'] = "u",
+            ['ư'] = "u", ['ừ'] = "u", ['ứ'] = "u", ['ử'] = "u", ['ữ'] = "u", ['ự'] = "u",
+            ['ỳ'] = "y", ['ý'] = "y", ['ỷ'] = "y", ['ỹ'] = "y", ['ỵ'] = "y",
+            ['đ'] = "d",
+            ['À'] = "a", ['Á'] = "a", ['Â'] = "a", ['Ã'] = "a",
+            ['È'] = "e", ['É'] = "e", ['Ê'] = "e",
+            ['Ì'] = "i", ['Í'] = "i",
+            ['Ò'] = "o", ['Ó'] = "o", ['Ô'] = "o", ['Õ'] = "o",
+            ['Ù'] = "u", ['Ú'] = "u",
+            ['Ý'] = "y",
+            ['Đ'] = "d",
+        };
+
+        var sb = new System.Text.StringBuilder();
+        foreach (var ch in name.ToLower())
+        {
+            if (map.TryGetValue(ch, out var rep)) sb.Append(rep);
+            else if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+            else if (ch == ' ' || ch == '-') sb.Append('-');
+        }
+
+        // Collapse multiple dashes
+        var slug = System.Text.RegularExpressions.Regex.Replace(sb.ToString(), "-+", "-").Trim('-');
+        return slug;
+    }
+
     /// <summary>GET /api/v1/admin/regions — list all regions.</summary>
     [HttpGet("regions")]
     public async Task<IActionResult> GetRegions(
