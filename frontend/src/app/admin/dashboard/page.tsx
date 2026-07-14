@@ -24,7 +24,7 @@ export default function AdminDashboardPage() {
     const fetchStats = async () => {
       try {
         const [productsRes, charactersRes, accountsRes, dollsRes] = await Promise.allSettled([
-          fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/collections?pageSize=1`, { headers: getHeaders() }),
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/products?pageSize=1`, { headers: getHeaders() }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/characters?pageSize=1`, { headers: getHeaders() }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/accounts?pageSize=1`, { headers: getHeaders() }),
           fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/dolls`, { headers: getHeaders() }) // to count tokens
