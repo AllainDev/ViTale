@@ -70,8 +70,8 @@ static async Task<int> MainAsync(string[] args)
                 await db.SaveChangesAsync();
                 Console.WriteLine($"OK:   {topic.Topic} ({lang}) — {qaPairs.Count} entries");
 
-                // Be polite to the API
-                await Task.Delay(500);
+                // Be polite to the API — 2.5s between requests to stay under 30 req/min
+                await Task.Delay(2500);
             }
             catch (Exception ex)
             {
