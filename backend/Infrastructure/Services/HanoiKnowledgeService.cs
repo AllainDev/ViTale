@@ -36,11 +36,11 @@ public class HanoiKnowledgeService : IHanoiKnowledgeService
                 SELECT * FROM hanoi_knowledge
                 WHERE is_active = true
                   AND language = {0}
-                  AND ({1} IS NULL OR category = {1})
+                  AND ({1}::text IS NULL OR category = {1})
                   AND search_vector @@ websearch_to_tsquery('simple', f_unaccent_immutable({2}))
                 ORDER BY ts_rank(search_vector, websearch_to_tsquery('simple', f_unaccent_immutable({2}))) DESC
                 LIMIT {3}
-                """, language, category, query, topK)
+                """, language, category ?? "", query, topK)
             .AsNoTracking()
             .ToListAsync(ct);
 
