@@ -188,7 +188,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.IsActive).HasColumnName("is_active");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
 
-            e.HasOne(x => x.StoryChapter).WithMany().HasForeignKey(x => x.StoryChapterId)
+            e.HasOne(x => x.StoryChapter).WithMany(c => c.Checkpoints).HasForeignKey(x => x.StoryChapterId)
              .IsRequired(false).OnDelete(DeleteBehavior.SetNull);
         });
 

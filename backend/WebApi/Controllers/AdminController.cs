@@ -79,7 +79,7 @@ public class AdminController : ControllerBase
         var hash = _random.GenerateFileHash(Convert.ToBase64String(fileBytes));
         var key = $"characters/model-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}-{hash[..8]}.glb";
 
-        var url = await _storage.UploadAsync(fileBytes, key, validationResult.Value, ct);
+        var url = await _storage.UploadAsync(fileBytes, key, validationResult.Value!, ct);
         if (url == null) return StatusCode(500, new { message = "Failed to upload to storage." });
 
         return Ok(new { url });
@@ -108,7 +108,7 @@ public class AdminController : ControllerBase
         var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
         var key = $"products/image-{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}-{hash[..8]}{ext}";
 
-        var url = await _storage.UploadAsync(fileBytes, key, validationResult.Value, ct);
+        var url = await _storage.UploadAsync(fileBytes, key, validationResult.Value!, ct);
         if (url == null) return StatusCode(500, new { message = "Failed to upload to storage." });
 
         return Ok(new { url });
@@ -517,7 +517,7 @@ public class AdminController : ControllerBase
         if (!string.IsNullOrEmpty(search))
         {
             var s = search.ToLower();
-            query = query.Where(x => x.Email.ToLower().Contains(s) || x.OAuthProvider.ToString().ToLower().Contains(s));
+            query = query.Where(x => x.Email.ToLower().Contains(s) || (x.OAuthProvider != null && x.OAuthProvider.ToString()!.ToLower().Contains(s)));
         }
 
         var total = await query.CountAsync(ct);

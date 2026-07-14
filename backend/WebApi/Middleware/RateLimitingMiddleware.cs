@@ -91,7 +91,7 @@ public class RateLimitingMiddleware
             return new { Count = 0, Expires = DateTimeOffset.UtcNow.AddSeconds(window) };
         });
 
-        int count = cacheEntry.Count + 1;
+        int count = cacheEntry!.Count + 1;
         _cache.Set(key, new { Count = count, Expires = cacheEntry.Expires }, cacheEntry.Expires);
 
         if (count > limit)

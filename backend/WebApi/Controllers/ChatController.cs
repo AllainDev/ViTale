@@ -161,7 +161,7 @@ public class ChatController : BaseController
         {
             message = finalContent,
             action = tags.Length > 0 ? string.Join(",", tags) : null,
-            audioUrl = (string)null,
+            audioUrl = (string?)null,
             toolCalls = invokedTools,
             sessionId = session.Id
         });

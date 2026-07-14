@@ -18,10 +18,6 @@ namespace Infrastructure.Migrations
                 name: "ProductId",
                 table: "characters");
 
-            migrationBuilder.DropIndex(
-                name: "IX_characters_ProductId",
-                table: "characters");
-
             migrationBuilder.AlterColumn<string>(
                 name: "region",
                 table: "story_chapters",
