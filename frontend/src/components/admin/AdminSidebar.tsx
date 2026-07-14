@@ -10,15 +10,19 @@ import {
   LogOut,
   Sparkles,
   ChevronRight,
-  QrCode
+  QrCode,
+  MapPin,
+  Map
 } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/admin/products',  icon: Package,         label: 'Sản phẩm'  },
-  { href: '/admin/characters',icon: Box,             label: 'Nhân vật 3D'},
-  { href: '/admin/tokens',    icon: QrCode,          label: 'Doll Tokens'},
-  { href: '/admin/accounts',  icon: Users,           label: 'Khách hàng'},
+  { href: '/admin/dashboard',   icon: LayoutDashboard, label: 'Dashboard'    },
+  { href: '/admin/products',    icon: Package,         label: 'Sản phẩm'     },
+  { href: '/admin/characters',  icon: Box,             label: 'Nhân vật 3D'  },
+  { href: '/admin/tokens',      icon: QrCode,          label: 'Doll Tokens'  },
+  { href: '/admin/regions',     icon: Map,             label: 'Khu vực'      },
+  { href: '/admin/checkpoints', icon: MapPin,          label: 'Địa điểm'     },
+  { href: '/admin/accounts',    icon: Users,           label: 'Khách hàng'   },
 ];
 
 export default function AdminSidebar() {

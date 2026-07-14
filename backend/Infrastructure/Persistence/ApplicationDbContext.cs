@@ -18,6 +18,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Stamp> Stamps => Set<Stamp>();
     public DbSet<Badge> Badges => Set<Badge>();
 
+    public DbSet<Region> Regions => Set<Region>();
     public DbSet<Partner> Partners => Set<Partner>();
     public DbSet<Voucher> Vouchers => Set<Voucher>();
     public DbSet<TravelerVoucher> TravelerVouchers => Set<TravelerVoucher>();
@@ -122,6 +123,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.ProductType).HasColumnName("product_type")
              .HasConversion(v => v.ToString(), v => Enum.Parse<ProductType>(v));
             e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
+            e.Property(x => x.RegionId).HasColumnName("region_id").IsRequired(false);
             e.Property(x => x.ImageUrl).HasColumnName("image_url").IsRequired(false);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
 
@@ -143,6 +145,43 @@ public class ApplicationDbContext : DbContext
              .OnDelete(DeleteBehavior.SetNull);
         });
 
+        // ── Region ───────────────────────────────────────────
+        modelBuilder.Entity<Region>(e =>
+        {
+            e.ToTable("regions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Id).HasColumnName("id");
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Slug).HasColumnName("slug").HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasColumnName("description").IsRequired(false);
+            e.Property(x => x.SortOrder).HasColumnName("sort_order").HasDefaultValue(0);
+            e.Property(x => x.IsActive).HasColumnName("is_active").HasDefaultValue(true);
+            e.Property(x => x.CreatedAt).HasColumnName("created_at");
+
+            e.HasIndex(x => x.Slug).IsUnique().HasDatabaseName("idx_regions_slug");
+            e.HasIndex(x => x.Name).IsUnique().HasDatabaseName("idx_regions_name");
+            e.HasIndex(x => x.IsActive).HasDatabaseName("idx_regions_is_active");
+
+            // One Region has many Checkpoints, Characters, Products (all nullable FKs)
+            e.HasMany(x => x.Checkpoints)
+             .WithOne(c => c.RegionEntity)
+             .HasForeignKey(c => c.RegionId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasMany(x => x.Characters)
+             .WithOne(c => c.RegionEntity)
+             .HasForeignKey(c => c.RegionId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasMany(x => x.Products)
+             .WithOne(p => p.RegionEntity)
+             .HasForeignKey(p => p.RegionId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
         // ── Character ─────────────────────────────────────────
         modelBuilder.Entity<Character>(e =>
         {
@@ -151,6 +190,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.Name).HasColumnName("name").HasMaxLength(100);
             e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
+            e.Property(x => x.RegionId).HasColumnName("region_id").IsRequired(false);
             e.Property(x => x.ProductId).HasColumnName("product_id");
             e.Property(x => x.ModelUrl).HasColumnName("model_url");
             e.Property(x => x.AnimationClips).HasColumnName("animation_clips").HasColumnType("jsonb");
@@ -183,6 +223,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.Longitude).HasColumnName("longitude").HasColumnType("decimal(10,7)");
             e.Property(x => x.Radius).HasColumnName("radius");
             e.Property(x => x.StoryChapterId).HasColumnName("story_chapter_id");
+            e.Property(x => x.RegionId).HasColumnName("region_id").IsRequired(false);
             e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
             e.Property(x => x.StoryAssetUrl).HasColumnName("story_asset_url").IsRequired(false);
             e.Property(x => x.IsActive).HasColumnName("is_active");

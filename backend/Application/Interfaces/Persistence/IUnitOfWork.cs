@@ -10,6 +10,7 @@ public interface IUnitOfWork
     IGenericRepository<DollToken> DollTokens { get; }
     IGenericRepository<PassportAccount> PassportAccounts { get; }
     IGenericRepository<Checkpoint> Checkpoints { get; }
+    IGenericRepository<Region> Regions { get; }
     IGenericRepository<UserGamificationProfile> UserGamificationProfiles { get; }
     IGenericRepository<UserStamp> UserStamps { get; }
 

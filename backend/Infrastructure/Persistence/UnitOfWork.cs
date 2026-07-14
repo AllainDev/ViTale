@@ -17,6 +17,7 @@ public class UnitOfWork : IUnitOfWork
         DollTokens = new GenericRepository<DollToken>(_db);
         PassportAccounts = new GenericRepository<PassportAccount>(_db);
         Checkpoints = new GenericRepository<Checkpoint>(_db);
+        Regions = new GenericRepository<Region>(_db);
         UserGamificationProfiles = new GenericRepository<UserGamificationProfile>(_db);
         UserStamps = new GenericRepository<UserStamp>(_db);
     }
@@ -27,6 +28,7 @@ public class UnitOfWork : IUnitOfWork
     public IGenericRepository<DollToken> DollTokens { get; }
     public IGenericRepository<PassportAccount> PassportAccounts { get; }
     public IGenericRepository<Checkpoint> Checkpoints { get; }
+    public IGenericRepository<Region> Regions { get; }
     public IGenericRepository<UserGamificationProfile> UserGamificationProfiles { get; }
     public IGenericRepository<UserStamp> UserStamps { get; }
 

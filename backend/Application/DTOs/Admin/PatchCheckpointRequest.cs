@@ -6,4 +6,6 @@ public class PatchCheckpointRequest
     public string? Region { get; set; }
     public string? StoryAssetUrl { get; set; }
     public bool? IsActive { get; set; }
+    public Guid? RegionId { get; set; }
 }
+

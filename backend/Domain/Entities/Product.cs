@@ -31,6 +31,10 @@ public class Product
     // ── Navigation properties ────────────────────────────────────────────────
     public virtual ICollection<DollToken> DollTokens { get; private set; } = new List<DollToken>();
     public virtual ICollection<Character> Characters { get; private set; } = new List<Character>();
+    public virtual Region? RegionEntity { get; private set; }
+
+    /// <summary>FK to the canonical Region entity. Nullable for backward compatibility.</summary>
+    public Guid? RegionId { get; private set; }
 
     protected Product() { }
 
@@ -59,6 +63,7 @@ public class Product
             Id = Guid.NewGuid(),
             Name = name.Trim(),
             Region = region.Trim(),
+            RegionId = null, // set separately via LinkRegion()
             ProductType = productType,
             Sku = string.IsNullOrWhiteSpace(sku) ? null : sku.Trim(),
             ImageUrl = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim(),
@@ -90,6 +95,9 @@ public class Product
         if (imageUrl    != null) ImageUrl    = string.IsNullOrWhiteSpace(imageUrl) ? null : imageUrl.Trim();
         if (isHighlight.HasValue) IsHighlight = isHighlight.Value;
     }
+
+    /// <summary>Links this product to the canonical Region entity.</summary>
+    public void LinkRegion(Guid? regionId) => RegionId = regionId;
 
     public void UpdateImageUrl(string? imageUrl)
     {

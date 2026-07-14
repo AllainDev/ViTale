@@ -553,23 +553,43 @@ public class AdminController : ControllerBase
         return NoContent();
     }
 
-    // ── Checkpoint management ─────────────────────────────────────────────────
+    // \u2500\u2500 Checkpoint management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
-    /// <summary>GET /api/v1/admin/checkpoints — list all checkpoints.</summary>
+    /// <summary>GET /api/v1/admin/checkpoints — list checkpoints with optional filters.</summary>
     [HttpGet("checkpoints")]
-    public async Task<IActionResult> GetCheckpoints(CancellationToken ct)
+    public async Task<IActionResult> GetCheckpoints(
+        [FromQuery] string? search,
+        [FromQuery] Guid? regionId,
+        [FromQuery] bool? isActive,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken ct = default)
     {
-        var checkpoints = await _uow.Checkpoints.Query()
-            .AsNoTracking()
+        var query = _uow.Checkpoints.Query().AsNoTracking();
+
+        if (!string.IsNullOrEmpty(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(c => c.Name.ToLower().Contains(s) || c.Region.ToLower().Contains(s));
+        }
+        if (regionId.HasValue)
+            query = query.Where(c => c.RegionId == regionId.Value);
+        if (isActive.HasValue)
+            query = query.Where(c => c.IsActive == isActive.Value);
+
+        var total = await query.CountAsync(ct);
+        var checkpoints = await query
             .OrderBy(c => c.Region).ThenBy(c => c.Name)
+            .Skip((page - 1) * pageSize).Take(pageSize)
             .Select(c => new
             {
-                c.Id, c.Name, c.Region, c.Latitude, c.Longitude,
-                c.Radius, c.IsActive, c.StoryAssetUrl, c.CreatedAt
+                c.Id, c.Name, c.Region, c.RegionId, c.Latitude, c.Longitude,
+                c.Radius, c.IsActive, c.StoryAssetUrl, c.CreatedAt,
+                RegionName = c.RegionEntity != null ? c.RegionEntity.Name : c.Region
             })
             .ToListAsync(ct);
 
-        return Ok(new { checkpoints, total = checkpoints.Count });
+        return Ok(new { checkpoints, total, page, pageSize });
     }
 
     /// <summary>POST /api/v1/admin/checkpoints — create a new checkpoint.</summary>
@@ -579,21 +599,33 @@ public class AdminController : ControllerBase
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
 
+        // Resolve display region name from entity if not provided
+        var regionName = req.Region;
+        if (req.RegionId.HasValue && string.IsNullOrWhiteSpace(regionName))
+        {
+            var regionEntity = await _uow.Regions.Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Id == req.RegionId.Value, ct);
+            if (regionEntity == null)
+                return BadRequest(new { message = "RegionId not found." });
+            regionName = regionEntity.Name;
+        }
+
         var checkpoint = Checkpoint.Create(
             req.Name, req.Latitude, req.Longitude,
-            req.Radius, req.Region,
-            storyAssetUrl: req.StoryAssetUrl);
+            req.Radius, regionName,
+            storyAssetUrl: req.StoryAssetUrl,
+            regionId: req.RegionId);
 
         _uow.Checkpoints.Add(checkpoint);
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Admin created checkpoint {Id} ({Name}) in {Region}", checkpoint.Id, checkpoint.Name, checkpoint.Region);
-        return CreatedAtAction(nameof(GetCheckpoints), new { id = checkpoint.Id }, new { checkpoint.Id });
+        return CreatedAtAction(nameof(GetCheckpoints), new { id = checkpoint.Id },
+            new { checkpoint.Id, checkpoint.Name, checkpoint.Region, checkpoint.RegionId, checkpoint.Latitude, checkpoint.Longitude, checkpoint.Radius, checkpoint.IsActive });
     }
 
-    /// <summary>
-    /// PATCH /api/v1/admin/checkpoints/{id} — update StoryAssetUrl, Region, or toggle IsActive.
-    /// </summary>
+    /// <summary>PATCH /api/v1/admin/checkpoints/{id} — update mutable fields.</summary>
     [HttpPatch("checkpoints/{id}")]
     public async Task<IActionResult> PatchCheckpoint(
         Guid id, [FromBody] PatchCheckpointRequest req, CancellationToken ct)
@@ -601,19 +633,160 @@ public class AdminController : ControllerBase
         var checkpoint = await _uow.Checkpoints.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (checkpoint == null) return NotFound();
 
-        checkpoint.Update(req.Name, req.Region, req.StoryAssetUrl, req.IsActive);
+        // When RegionId changes, auto-sync the display name
+        var regionName = req.Region;
+        if (req.RegionId.HasValue && string.IsNullOrWhiteSpace(regionName))
+        {
+            var regionEntity = await _uow.Regions.Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r => r.Id == req.RegionId.Value, ct);
+            if (regionEntity == null)
+                return BadRequest(new { message = "RegionId not found." });
+            regionName = regionEntity.Name;
+        }
+
+        checkpoint.Update(req.Name, regionName, req.StoryAssetUrl, req.IsActive, req.RegionId);
         await _uow.SaveChangesAsync(ct);
 
         _logger.LogInformation("Admin patched checkpoint {Id}", id);
         return Ok(new
         {
-            checkpoint.Id, checkpoint.Name, checkpoint.Region,
+            checkpoint.Id, checkpoint.Name, checkpoint.Region, checkpoint.RegionId,
+            checkpoint.Latitude, checkpoint.Longitude, checkpoint.Radius,
             checkpoint.StoryAssetUrl, checkpoint.IsActive
         });
     }
+
+    /// <summary>DELETE /api/v1/admin/checkpoints/{id} — permanently remove a checkpoint.</summary>
+    [HttpDelete("checkpoints/{id}")]
+    public async Task<IActionResult> DeleteCheckpoint(Guid id, CancellationToken ct)
+    {
+        var checkpoint = await _uow.Checkpoints.Query().FirstOrDefaultAsync(x => x.Id == id, ct);
+        if (checkpoint == null) return NotFound();
+
+        _uow.Checkpoints.Remove(checkpoint);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogWarning("Admin deleted checkpoint {Id} ({Name})", id, checkpoint.Name);
+        return NoContent();
+    }
+
+    // \u2500\u2500 Region management \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+    /// <summary>GET /api/v1/admin/regions — list all regions.</summary>
+    [HttpGet("regions")]
+    public async Task<IActionResult> GetRegions(
+        [FromQuery] string? search,
+        [FromQuery] bool? isActive,
+        CancellationToken ct = default)
+    {
+        var query = _uow.Regions.Query().AsNoTracking();
+
+        if (!string.IsNullOrEmpty(search))
+        {
+            var s = search.ToLower();
+            query = query.Where(r => r.Name.ToLower().Contains(s) || r.Slug.ToLower().Contains(s));
+        }
+        if (isActive.HasValue)
+            query = query.Where(r => r.IsActive == isActive.Value);
+
+        var regions = await query.OrderBy(r => r.SortOrder).ThenBy(r => r.Name)
+            .Select(r => new
+            {
+                r.Id, r.Name, r.Slug, r.Description, r.SortOrder, r.IsActive, r.CreatedAt,
+                CheckpointCount = _uow.Checkpoints.Query().Count(c => c.RegionId == r.Id),
+                CharacterCount  = _uow.Characters.Query().Count(c => c.RegionId == r.Id && !c.IsDeleted),
+                ProductCount    = _uow.Products.Query().Count(p => p.RegionId == r.Id && !p.IsDeleted)
+            })
+            .ToListAsync(ct);
+
+        return Ok(new { regions, total = regions.Count });
+    }
+
+    /// <summary>GET /api/v1/admin/regions/options — lightweight dropdown list.</summary>
+    [HttpGet("regions/options")]
+    public async Task<IActionResult> GetRegionOptions(CancellationToken ct)
+    {
+        var options = await _uow.Regions.Query()
+            .AsNoTracking()
+            .Where(r => r.IsActive)
+            .OrderBy(r => r.SortOrder).ThenBy(r => r.Name)
+            .Select(r => new { r.Id, r.Name, r.Slug })
+            .ToListAsync(ct);
+
+        return Ok(new { regions = options });
+    }
+
+    /// <summary>POST /api/v1/admin/regions — create a new region.</summary>
+    [HttpPost("regions")]
+    public async Task<IActionResult> CreateRegion([FromBody] CreateRegionRequest req, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(req.Name))
+            return BadRequest(new { message = "Name is required." });
+        if (string.IsNullOrWhiteSpace(req.Slug))
+            return BadRequest(new { message = "Slug is required." });
+
+        var slugLower = req.Slug.Trim().ToLowerInvariant();
+        var duplicate = await _uow.Regions.Query()
+            .AnyAsync(r => r.Slug == slugLower || r.Name == req.Name.Trim(), ct);
+        if (duplicate)
+            return Conflict(new { message = "A region with the same name or slug already exists." });
+
+        var region = Domain.Entities.Region.Create(req.Name, slugLower, req.Description, req.SortOrder);
+        _uow.Regions.Add(region);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Admin created region {Id} ({Name})", region.Id, region.Name);
+        return Ok(new { region.Id, region.Name, region.Slug, region.Description, region.SortOrder, region.IsActive, region.CreatedAt });
+    }
+
+    /// <summary>PUT /api/v1/admin/regions/{id} — update a region.</summary>
+    [HttpPut("regions/{id}")]
+    public async Task<IActionResult> UpdateRegion(Guid id, [FromBody] UpdateRegionRequest req, CancellationToken ct)
+    {
+        var region = await _uow.Regions.Query().FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (region == null) return NotFound();
+
+        // Uniqueness check (exclude self)
+        if (req.Name != null || req.Slug != null)
+        {
+            var slugLower = req.Slug?.Trim().ToLowerInvariant() ?? region.Slug;
+            var nameTrimmed = req.Name?.Trim() ?? region.Name;
+            var duplicate = await _uow.Regions.Query()
+                .AnyAsync(r => r.Id != id && (r.Slug == slugLower || r.Name == nameTrimmed), ct);
+            if (duplicate)
+                return Conflict(new { message = "A region with the same name or slug already exists." });
+        }
+
+        region.Update(req.Name, req.Slug, req.Description, req.SortOrder, req.IsActive);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Admin updated region {Id} ({Name})", region.Id, region.Name);
+        return Ok(new { region.Id, region.Name, region.Slug, region.Description, region.SortOrder, region.IsActive });
+    }
+
+    /// <summary>
+    /// DELETE /api/v1/admin/regions/{id} — delete a region.
+    /// Blocked if the region has linked checkpoints (use deactivate instead).
+    /// </summary>
+    [HttpDelete("regions/{id}")]
+    public async Task<IActionResult> DeleteRegion(Guid id, CancellationToken ct)
+    {
+        var region = await _uow.Regions.Query().FirstOrDefaultAsync(r => r.Id == id, ct);
+        if (region == null) return NotFound();
+
+        var hasCheckpoints = await _uow.Checkpoints.Query().AnyAsync(c => c.RegionId == id, ct);
+        if (hasCheckpoints)
+            return Conflict(new { message = "Cannot delete region while it has linked checkpoints. Deactivate it instead." });
+
+        _uow.Regions.Remove(region);
+        await _uow.SaveChangesAsync(ct);
+
+        _logger.LogWarning("Admin deleted region {Id} ({Name})", id, region.Name);
+        return NoContent();
+    }
 }
 
-// ── DTOs ──────────────────────────────────────────────────────────────────────
-
+// \u2500\u2500 DTOs \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 
 
