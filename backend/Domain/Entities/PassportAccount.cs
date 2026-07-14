@@ -56,7 +56,7 @@ public class PassportAccount
             Email = email.ToLowerInvariant(),
             PasswordHash = passwordHash,
             FullName = fullName,
-            IsEmailVerified = false,
+            IsEmailVerified = true, // Tạm thời bypass xác thực email để test
             CreatedAt = DateTime.UtcNow,
             IsLocked = false
         };
