@@ -70,8 +70,9 @@ static async Task<int> MainAsync(string[] args)
                 await db.SaveChangesAsync();
                 Console.WriteLine($"OK:   {topic.Topic} ({lang}) — {qaPairs.Count} entries");
 
-                // Be polite to the API — 2.5s between requests to stay under 30 req/min
-                await Task.Delay(2500);
+                // Be polite to the API — 4s between requests keeps us at 15 req/min,
+                // well under Groq free tier 30 req/min.
+                await Task.Delay(4000);
             }
             catch (Exception ex)
             {
@@ -121,27 +122,29 @@ Output STRICT JSON in this exact format (no markdown, no commentary):
 
     var json = JsonSerializer.Serialize(body);
 
-    // Retry with exponential backoff on 429 (rate limit) and 5xx
+    // Single attempt — caller spaces requests to avoid 429.
+    // Retry only on 5xx (transient server error).
     HttpResponseMessage? response = null;
     int delayMs = 2000;
-    for (int attempt = 0; attempt < 5; attempt++)
+    for (int attempt = 0; attempt < 3; attempt++)
     {
         response = await http.PostAsync("v1/chat/completions",
             new StringContent(json, Encoding.UTF8, "application/json"));
         if (response.IsSuccessStatusCode) break;
-        if ((int)response.StatusCode == 429 || (int)response.StatusCode >= 500)
+        if ((int)response.StatusCode >= 500)
         {
-            var wait = delayMs * (int)Math.Pow(2, attempt);
-            Console.Error.WriteLine($"  Retry {attempt + 1}/5 after {wait}ms (status {(int)response.StatusCode})");
-            await Task.Delay(wait);
+            await Task.Delay(delayMs * (int)Math.Pow(2, attempt));
             continue;
         }
-        break; // non-retryable (400, 401, 404)
+        break; // 429, 4xx — don't retry, return error to caller
     }
 
     response!.EnsureSuccessStatusCode();
-    var result = await response.Content.ReadFromJsonAsync<GroqResponse>();
-    var text = result?.choices?.FirstOrDefault()?.message?.content ?? "{}";
+    var result = await response.Content.ReadFromJsonAsync<GroqResponse>()
+        ?? throw new InvalidOperationException("Empty response body");
+    var text = result.choices?.FirstOrDefault()?.message?.content;
+    if (string.IsNullOrWhiteSpace(text))
+        throw new InvalidOperationException("Empty response content");
 
     // Strip markdown code fences if present
     text = text.Trim();
