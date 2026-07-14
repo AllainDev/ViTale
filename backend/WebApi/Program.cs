@@ -87,6 +87,7 @@ try
     builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
     builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
     builder.Services.AddScoped<ITranslationRepository, TranslationRepository>();
+    builder.Services.AddScoped<Application.Interfaces.Persistence.IUnitOfWork, Infrastructure.Persistence.UnitOfWork>();
 
     // ── Chat Provider Chain (with multi-provider failover) ──
     builder.Services.AddSingleton<IChatProvider>(sp =>

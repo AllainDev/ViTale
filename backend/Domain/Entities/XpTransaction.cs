@@ -15,13 +15,16 @@ public class XpTransaction
     protected XpTransaction() { }
 
     /// <param name="profileId">UserGamificationProfile.Id — the parent profile's PK.</param>
-    public XpTransaction(Guid profileId, int amount, XpSource source)
+    public static XpTransaction Create(Guid profileId, int amount, XpSource source)
     {
-        Id = Guid.NewGuid();
-        UserId = profileId; // stored in 'user_id' column, FK to user_gamification_profiles
-        Amount = amount;
-        Source = source;
-        Timestamp = DateTime.UtcNow;
+        return new XpTransaction
+        {
+            Id = Guid.NewGuid(),
+            UserId = profileId, // stored in 'user_id' column, FK to user_gamification_profiles
+            Amount = amount,
+            Source = source,
+            Timestamp = DateTime.UtcNow
+        };
     }
 }
 

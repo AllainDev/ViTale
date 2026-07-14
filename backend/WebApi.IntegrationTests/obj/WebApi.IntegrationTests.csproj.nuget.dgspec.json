@@ -57,6 +57,10 @@
             "FluentValidation": {
               "target": "Package",
               "version": "[11.11.0, )"
+            },
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[9.0.6, )"
             }
           },
           "imports": [
@@ -756,6 +760,10 @@
             "BCrypt.Net-Next": {
               "target": "Package",
               "version": "[4.2.0, )"
+            },
+            "DnsClient": {
+              "target": "Package",
+              "version": "[1.8.0, )"
             },
             "Microsoft.EntityFrameworkCore": {
               "target": "Package",

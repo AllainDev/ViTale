@@ -18,6 +18,7 @@ public class UserGamificationProfile
     public int BadgesEarned { get; private set; }
     public DateTime CreatedAt { get; private set; }
     public DateTime LastUpdatedAt { get; private set; }
+    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[] RowVersion { get; private set; } = Array.Empty<byte>();
 
     // Navigation properties (populated by tasks 1.3 and 1.4)
@@ -41,8 +42,7 @@ public class UserGamificationProfile
             StampsUnlocked = 0,
             BadgesEarned = 0,
             CreatedAt = DateTime.UtcNow,
-            LastUpdatedAt = DateTime.UtcNow,
-            RowVersion = Guid.NewGuid().ToByteArray()
+            LastUpdatedAt = DateTime.UtcNow
         };
     }
 
@@ -59,8 +59,8 @@ public class UserGamificationProfile
 
         TotalXp += xpAmount;
         LastUpdatedAt = DateTime.UtcNow;
-        RowVersion = Guid.NewGuid().ToByteArray();
-        XpTransactions.Add(new XpTransaction(Id, xpAmount, source));
+        var transaction = XpTransaction.Create(Id, xpAmount, source);
+        XpTransactions.Add(transaction);
     }
 
     /// <summary>
@@ -71,7 +71,6 @@ public class UserGamificationProfile
     {
         CheckinsCount++;
         LastUpdatedAt = DateTime.UtcNow;
-        RowVersion = Guid.NewGuid().ToByteArray();
     }
 
     /// <summary>
@@ -82,7 +81,6 @@ public class UserGamificationProfile
     {
         StampsUnlocked++;
         LastUpdatedAt = DateTime.UtcNow;
-        RowVersion = Guid.NewGuid().ToByteArray();
     }
 
     /// <summary>
@@ -105,7 +103,6 @@ public class UserGamificationProfile
             var oldLevel = CurrentLevel;
             CurrentLevel++;
             LastUpdatedAt = DateTime.UtcNow;
-            RowVersion = Guid.NewGuid().ToByteArray();
 
             var rewards = GetLevelUpRewards(CurrentLevel);
             return new LevelUpResult(true, oldLevel, CurrentLevel, rewards);

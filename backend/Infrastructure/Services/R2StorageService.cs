@@ -46,6 +46,8 @@ public class R2StorageService : IStorageService
         string contentType,
         CancellationToken ct = default)
     {
+        ValidateKey(key);
+
         if (string.IsNullOrEmpty(_publicUrl))
         {
             _logger.LogWarning("R2 not configured (CLOUDFLARE_R2_PUBLIC_URL empty) — upload skipped");
@@ -61,6 +63,7 @@ public class R2StorageService : IStorageService
                 Key         = key,
                 InputStream = ms,
                 ContentType = contentType,
+                DisablePayloadSigning = true
             };
 
             await _s3.PutObjectAsync(request, ct);
@@ -79,6 +82,7 @@ public class R2StorageService : IStorageService
     /// <inheritdoc />
     public async Task<bool> DeleteAsync(string key, CancellationToken ct = default)
     {
+        ValidateKey(key);
         try
         {
             await _s3.DeleteObjectAsync(_bucket, key, ct);
@@ -93,12 +97,17 @@ public class R2StorageService : IStorageService
     }
 
     /// <inheritdoc />
-    public string GetPublicUrl(string key) =>
-        string.IsNullOrEmpty(_publicUrl) ? key : $"{_publicUrl.TrimEnd('/')}/{key}";
+    public string GetPublicUrl(string key)
+    {
+        ValidateKey(key);
+        return string.IsNullOrEmpty(_publicUrl) ? key : $"{_publicUrl.TrimEnd('/')}/{key}";
+    }
 
     /// <inheritdoc />
     public string GeneratePreSignedUrl(string key, string contentType, TimeSpan expiresIn)
     {
+        ValidateKey(key);
+
         var request = new GetPreSignedUrlRequest
         {
             BucketName = _bucket,
@@ -109,5 +118,14 @@ public class R2StorageService : IStorageService
         };
 
         return _s3.GetPreSignedURL(request);
+    }
+
+    private static void ValidateKey(string key)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Key cannot be null or empty", nameof(key));
+
+        if (key.Contains("../") || key.Contains("..\\"))
+            throw new ArgumentException("Path traversal is not allowed in object key", nameof(key));
     }
 }

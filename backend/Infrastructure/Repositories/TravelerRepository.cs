@@ -13,8 +13,17 @@ public class TravelerRepository : ITravelerRepository
     public Task<Traveler?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         _db.Travelers.FirstOrDefaultAsync(t => t.Id == id, ct);
 
-    public Task<Traveler?> GetByAnonymousIdAsync(string anonymousId, CancellationToken ct = default) =>
-        _db.Travelers.FirstOrDefaultAsync(t => t.AnonymousId == anonymousId, ct);
+    public async Task<Traveler?> GetByAnonymousIdAsync(string anonymousId, CancellationToken ct = default)
+    {
+        return await _db.Travelers
+            .FirstOrDefaultAsync(t => t.AnonymousId == anonymousId, ct);
+    }
+
+    public async Task<Traveler?> GetByLinkedAccountIdAsync(Guid accountId, CancellationToken ct = default)
+    {
+        return await _db.Travelers
+            .FirstOrDefaultAsync(t => t.LinkedAccountId == accountId, ct);
+    }
 
     public async Task<Traveler> CreateAsync(Traveler traveler, CancellationToken ct = default)
     {

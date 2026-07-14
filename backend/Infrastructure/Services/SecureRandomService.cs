@@ -20,15 +20,7 @@ public class SecureRandomService : ISecureRandomService
 
     private static string GenerateRandom(int length)
     {
-        var result = new char[length];
-        var bytes = RandomNumberGenerator.GetBytes(length * 2);
-        for (int i = 0; i < length; i++)
-        {
-            // Use rejection sampling to avoid modulo bias
-            var index = BitConverter.ToUInt16(bytes, i * 2) % AlphanumericChars.Length;
-            result[i] = AlphanumericChars[index];
-        }
-        return new string(result);
+        return RandomNumberGenerator.GetString(AlphanumericChars, length);
     }
 }
 

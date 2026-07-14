@@ -24,7 +24,7 @@ public static class DatabaseSeeder
     // ── Pre-defined GUIDs for dev seed (idempotent across re-runs) ─────────────
     private static readonly Guid DevAccountId   = Guid.Parse("99999999-0000-0000-0000-000000000001");
     private static readonly Guid DevTravelerId  = Guid.Parse("99999999-0000-0000-0000-000000000002");
-    private static readonly Guid DevDollId      = Guid.Parse("99999999-0000-0000-0000-000000000003");
+    private static readonly Guid HanoiDollProductId = Guid.Parse("44444444-0000-0000-0000-000000000001");
     private static readonly Guid DevDollTokenId = Guid.Parse("99999999-0000-0000-0000-000000000004");
 
     private const string DevEmail    = "dev@vitale.vn";
@@ -58,12 +58,6 @@ public static class DatabaseSeeder
     /// </summary>
     private static async Task SeedDevUserAsync(ApplicationDbContext db)
     {
-        // Idempotent: only skip if the full dev seed already exists (doll token present).
-        // This handles partial seeds from previous failed runs.
-        var existingDollToken = await db.DollTokens
-            .AnyAsync(t => t.Token == "VID-DEV-0000-0000-0000-0000-0000-0001");
-        if (existingDollToken) return;
-
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(DevPassword, workFactor: 12);
         var now = DateTime.UtcNow;
 
@@ -96,15 +90,7 @@ public static class DatabaseSeeder
             """,
             DevTravelerId, "dev-traveler", DevAccountId, devPreferencesJson, now);
 
-        // 3. Doll model (Product) — required so DollToken.DollId FK is satisfied
-        await db.Database.ExecuteSqlRawAsync("""
-            INSERT INTO products (id, sku, product_type, region, created_at)
-            VALUES ({0}, {1}, 'Doll', 'VN-HN', {2})
-            ON CONFLICT (id) DO NOTHING
-            """,
-            DevDollId, "DEV-DOLL-HN-001", now);
-
-        // 4. Pre-claimed DollToken for the dev traveler
+        // 3. Pre-claimed DollToken for the dev traveler (linking to HanoiDollProductId created in SeedProductsAsync)
         await db.Database.ExecuteSqlRawAsync("""
             INSERT INTO doll_tokens
                 (id, token, doll_id, user_id, generated_at, claimed_at,
@@ -112,10 +98,10 @@ public static class DatabaseSeeder
             VALUES
                 ({0}, {1}, {2}, {3}, {4}, {4},
                  NULL, false, NULL, {5})
-            ON CONFLICT (id) DO NOTHING
+            ON CONFLICT (id) DO UPDATE SET doll_id = EXCLUDED.doll_id
             """,
             DevDollTokenId, "VID-DEV-0000-0000-0000-0000-0000-0001",
-            DevDollId, DevTravelerId, now, Guid.NewGuid().ToByteArray());
+            HanoiDollProductId, DevTravelerId, now, Guid.NewGuid().ToByteArray());
 
         // 5. Gamification profile for the dev traveler
         await db.Database.ExecuteSqlRawAsync("""
@@ -211,6 +197,8 @@ public static class DatabaseSeeder
         // passport view only renders a single region tab.
 
         // Remove old Home and School checkpoints from DB
+        // First delete any referencing user_stamps to avoid FK violation
+        await db.Database.ExecuteSqlRawAsync("DELETE FROM user_stamps WHERE checkpoint_id IN (SELECT id FROM checkpoints WHERE region IN ('Home', 'School'))");
         await db.Database.ExecuteSqlRawAsync("DELETE FROM checkpoints WHERE region IN ('Home', 'School')");
 
         // 15 real Hanoi tourist checkpoints — unchanged IDs to keep migrations stable.
@@ -331,9 +319,6 @@ public static class DatabaseSeeder
                 from, until);
         }
     }
-
-    private static readonly Guid HanoiDollProductId = Guid.Parse("44444444-0000-0000-0000-000000000001");
-
     private static async Task SeedProductsAsync(ApplicationDbContext db)
     {
         // Seed the existing Hanoi Doll as a Product with full catalog info

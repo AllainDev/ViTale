@@ -25,5 +25,7 @@ public class DollDetail
     public Guid Id { get; set; }
     public string Region { get; set; } = string.Empty;
     public string? Sku { get; set; }
+    public string? ImageUrl { get; set; }
     public DateTime ClaimedAt { get; set; }
 }
+

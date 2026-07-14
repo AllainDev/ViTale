@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .feature { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #667eea; }
+        .button { display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1>Welcome to ViTale!</h1>
+        </div>
+        <div class='content'>
+            <p>Hi <strong>{{FullName}}</strong>,</p>
+            <p>Your account has been successfully verified! You can now:</p>
+            
+            <div class='feature'>
+                <strong>Explore Destinations</strong><br/>
+                Discover unique cultural sites across Vietnam
+            </div>
+            
+            <div class='feature'>
+                <strong>Collect Badges</strong><br/>
+                Check-in at destinations and earn special badges
+            </div>
+            
+            <div class='feature'>
+                <strong>Chat with AI</strong><br/>
+                Converse with AI characters to learn about local culture
+            </div>
+            
+            <div class='feature'>
+                <strong>Earn Rewards</strong><br/>
+                Use vouchers from our partners
+            </div>
+            
+            <p style='text-align: center;'>
+                <a href='{{FrontendUrl}}' class='button'>Start Exploring</a>
+            </p>
+            
+            <p>Have a wonderful experience!</p>
+        </div>
+        <div class='footer'>
+            <p>© 2026 ViTale - Explore Vietnamese Culture</p>
+        </div>
+    </div>
+</body>
+</html>

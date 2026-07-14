@@ -13,8 +13,7 @@ namespace Infrastructure.Services;
 /// </summary>
 public class GamificationService : IGamificationService
 {
-    private const int BaseCheckinXp = 50;
-    private const int DollBonusXp = 100;
+
 
     private readonly ApplicationDbContext _db;
 
@@ -37,8 +36,6 @@ public class GamificationService : IGamificationService
 
         // Check for level-up (may level multiple times in one go)
         var levelUpResult = profile.CheckLevelUp();
-
-        await _db.SaveChangesAsync(ct);
 
         return new XpAwardResult
         {
@@ -85,7 +82,7 @@ public class GamificationService : IGamificationService
 
         if (isNew)
         {
-            var stamp = new UserStamp(userId, checkpointId, hasDollBonus);
+            var stamp = UserStamp.Create(userId, checkpointId, hasDollBonus);
             profile.Stamps.Add(stamp); // EF tracks via navigation
             _db.Set<UserStamp>().Add(stamp); // Force EF to treat it as a new entity
             profile.IncrementStamps();
@@ -95,8 +92,6 @@ public class GamificationService : IGamificationService
             // Stamp already exists but doll bonus not yet marked
             existing.MarkDollBonusAcquired();
         }
-
-        await _db.SaveChangesAsync(ct);
 
         var checkpoint = await _db.Checkpoints
             .AsNoTracking()
@@ -140,12 +135,13 @@ public class GamificationService : IGamificationService
         var profile = await GetOrCreateProfileAsync(userId, ct);
 
         stamp.MarkDollBonusAcquired();
-        profile.AddXp(DollBonusXp, XpSource.Bonus);
+        // Give the 100 XP bonus retroactively
+        profile.AddXp(Domain.Constants.GamificationConstants.DollBonusXp, XpSource.Bonus);
         profile.CheckLevelUp();
 
         await _db.SaveChangesAsync(ct);
 
-        return DollBonusXp;
+        return Domain.Constants.GamificationConstants.DollBonusXp;
     }
 
     // ── GetUserGamificationStatusAsync ────────────────────────────────────────

@@ -29,9 +29,11 @@ public class GroqChatProvider : IChatProvider
         IHttpClientFactory factory, ILogger<GroqChatProvider> logger,
         string name, string apiKey, string baseUrl, string model, int priority)
     {
-        _http = factory.CreateClient("GroqProvider_" + name);
-        if (_http.BaseAddress == null)
-            _http.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
+        // Create an unnamed (default) HttpClient and configure it here.
+        // We set the base address and auth header manually so we don't rely
+        // on named client registration matching the dynamic provider name.
+        _http = factory.CreateClient();
+        _http.BaseAddress = new Uri(baseUrl.TrimEnd('/') + "/");
         _http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
         _http.Timeout = TimeSpan.FromSeconds(30);
         _logger = logger;

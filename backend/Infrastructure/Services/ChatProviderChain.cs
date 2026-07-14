@@ -1,4 +1,5 @@
 using Application.Interfaces.Services;
+using Domain.Exceptions;
 using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
@@ -6,8 +7,8 @@ namespace Infrastructure.Services;
 /// <summary>
 /// Composes multiple IChatProvider instances into a failover chain.
 /// Tries providers in priority order (0 = primary). On retryable errors
-/// (HTTP/network), falls back to the next provider. On non-retryable errors
-/// (bad arguments), re-throws immediately.
+/// (network timeout), falls back to the next provider. Wraps all failures
+/// into AiServiceException so ExceptionHandlingMiddleware returns 503.
 /// </summary>
 public class ChatProviderChain : IChatProvider
 {
@@ -33,20 +34,33 @@ public class ChatProviderChain : IChatProvider
             {
                 var result = await provider.CompleteAsync(request, ct);
                 if (errors.Count > 0)
-                    _logger.LogInformation("Provider {Name} succeeded after {N} retries", provider.Name, errors.Count);
+                    _logger.LogInformation("Provider {Name} succeeded after {N} fallbacks", provider.Name, errors.Count);
                 return result;
             }
             catch (Exception ex) when (IsRetryable(ex))
             {
-                _logger.LogWarning("Provider {Name} failed: {Error}. Trying next.", provider.Name, ex.Message);
+                _logger.LogWarning(ex, "Provider {Name} failed (retryable), trying next provider.", provider.Name);
                 errors.Add(ex);
             }
+            catch (Exception ex)
+            {
+                // Non-retryable (e.g. bad request, auth error) — log and stop immediately
+                _logger.LogError(ex, "Provider {Name} failed with non-retryable error.", provider.Name);
+                throw new AiServiceException($"AI provider '{provider.Name}' error: {ex.Message}");
+            }
         }
-        throw new AggregateException("All chat providers failed", errors);
+
+        // All providers exhausted
+        var innerMessages = string.Join("; ", errors.Select(e => e.Message));
+        _logger.LogError("All {Count} chat providers failed. Errors: {Errors}", _providers.Count, innerMessages);
+        throw new AiServiceException($"All AI providers are currently unavailable. ({innerMessages})");
     }
 
+    /// <summary>
+    /// Only true network-level transient errors should trigger fallback.
+    /// HTTP 4xx errors (auth, bad request) are NOT retryable.
+    /// </summary>
     private static bool IsRetryable(Exception ex)
-        => ex is HttpRequestException
-        || ex is TaskCanceledException
-        || ex is InvalidOperationException ioe && ioe.Message.Contains("rate", StringComparison.OrdinalIgnoreCase);
+        => ex is TaskCanceledException
+        || (ex is HttpRequestException hre && hre.StatusCode is null); // null = network-level, not HTTP error
 }

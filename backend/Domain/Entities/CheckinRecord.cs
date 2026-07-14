@@ -27,6 +27,9 @@ public class CheckinRecord
     public Checkpoint? Checkpoint { get; private set; }
     public Traveler? Traveler { get; private set; }
 
+    // ── Navigation (tightened FK) ───────────────────────────────────────────────
+    public virtual DollToken? DollToken { get; private set; }
+
     protected CheckinRecord() { }
 
     /// <summary>
@@ -57,21 +60,23 @@ public class CheckinRecord
     /// <param name="accuracy">GPS accuracy in metres, or null if unavailable.</param>
     /// <param name="xpAwarded">XP awarded for this check-in (50 base or 150 with token).</param>
     /// <param name="dollTokenId">The DollToken.Id consumed, or null for a standard check-in.</param>
-    public CheckinRecord(Guid userId, Guid checkpointId, double latitude, double longitude,
+    public static CheckinRecord CreateGamificationCheckin(Guid userId, Guid checkpointId, double latitude, double longitude,
                          double? accuracy, int xpAwarded, Guid? dollTokenId = null)
     {
-        Id = Guid.NewGuid();
-        TravelerId = userId;
-        CheckpointId = checkpointId;
-        Latitude = latitude;
-        Longitude = longitude;
-        Accuracy = accuracy;
-        CheckinAt = DateTime.UtcNow;
-        CreatedAt = DateTime.UtcNow;
-        ClientGeneratedId = Guid.NewGuid(); // auto-generate for GPS flow
-        SyncStatus = SyncStatus.Synced;
-        XpAwarded = xpAwarded;
-        DollTokenId = dollTokenId;
+        return new CheckinRecord
+        {
+            Id = Guid.NewGuid(),
+            TravelerId = userId,
+            CheckpointId = checkpointId,
+            Latitude = latitude,
+            Longitude = longitude,
+            Accuracy = accuracy,
+            CheckinAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow,
+            ClientGeneratedId = Guid.NewGuid(), // auto-generate for GPS flow
+            SyncStatus = SyncStatus.Synced,
+            XpAwarded = xpAwarded,
+            DollTokenId = dollTokenId
+        };
     }
 }
-

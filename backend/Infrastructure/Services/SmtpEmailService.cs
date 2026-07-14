@@ -42,91 +42,28 @@ public class SmtpEmailService : IEmailService
 
     public async Task<bool> SendEmailVerificationAsync(string toEmail, string fullName, string verificationToken, CancellationToken ct = default)
     {
-        var verificationUrl = $"{_frontendUrl}/auth/verify-email?token={verificationToken}";
-        
+        var escapedToken = Uri.EscapeDataString(verificationToken);
+        var verificationUrl = $"{_frontendUrl}/auth/verify-email?token={escapedToken}";
         var subject = "Verify your email address - ViTale";
-        var body = $@"
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-        .button {{ display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1>Welcome to ViTale!</h1>
-        </div>
-        <div class='content'>
-            <p>Hi <strong>{fullName}</strong>,</p>
-            <p>Thank you for registering a ViTale account! Please verify your email to start your journey exploring Vietnamese culture.</p>
-            <p style='text-align: center;'>
-                <a href='{verificationUrl}' class='button'>Verify Email</a>
-            </p>
-            <p><strong>Note:</strong> This link will expire in 24 hours.</p>
-            <p>If you did not create this account, please ignore this email.</p>
-        </div>
-        <div class='footer'>
-            <p>© 2026 ViTale - Explore Vietnamese Culture</p>
-        </div>
-    </div>
-</body>
-</html>";
+        
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "Emails", "Verification.html");
+        var body = await File.ReadAllTextAsync(templatePath, ct);
+        body = body.Replace("{{FullName}}", fullName)
+                   .Replace("{{VerificationUrl}}", verificationUrl);
 
         return await SendEmailAsync(toEmail, subject, body, ct);
     }
 
     public async Task<bool> SendPasswordResetAsync(string toEmail, string fullName, string resetToken, CancellationToken ct = default)
     {
-        var resetUrl = $"{_frontendUrl}/auth/reset-password?token={resetToken}";
-        
+        var escapedToken = Uri.EscapeDataString(resetToken);
+        var resetUrl = $"{_frontendUrl}/auth/reset-password?token={escapedToken}";
         var subject = "Reset your password - ViTale";
-        var body = $@"
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-        .button {{ display: inline-block; padding: 15px 30px; background: #dc3545; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-        .warning {{ background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; margin: 15px 0; }}
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1>Password Reset Request</h1>
-        </div>
-        <div class='content'>
-            <p>Hi <strong>{fullName}</strong>,</p>
-            <p>We received a request to reset the password for your account.</p>
-            <p style='text-align: center;'>
-                <a href='{resetUrl}' class='button'>Reset Password</a>
-            </p>
-            <div class='warning'>
-                <strong>Important Notes:</strong>
-                <ul>
-                    <li>This link is only valid for 2 hours</li>
-                    <li>This link can only be used once</li>
-                    <li>If you didn't request a password reset, you can safely ignore this email</li>
-                </ul>
-            </div>
-        </div>
-        <div class='footer'>
-            <p>© 2026 ViTale - Explore Vietnamese Culture</p>
-        </div>
-    </div>
-</body>
-</html>";
+        
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "Emails", "PasswordReset.html");
+        var body = await File.ReadAllTextAsync(templatePath, ct);
+        body = body.Replace("{{FullName}}", fullName)
+                   .Replace("{{ResetUrl}}", resetUrl);
 
         return await SendEmailAsync(toEmail, subject, body, ct);
     }
@@ -134,61 +71,11 @@ public class SmtpEmailService : IEmailService
     public async Task<bool> SendWelcomeEmailAsync(string toEmail, string fullName, CancellationToken ct = default)
     {
         var subject = "Welcome to ViTale!";
-        var body = $@"
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }}
-        .content {{ background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }}
-        .feature {{ background: white; padding: 15px; margin: 10px 0; border-radius: 5px; border-left: 4px solid #667eea; }}
-        .button {{ display: inline-block; padding: 15px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
-        .footer {{ text-align: center; margin-top: 20px; color: #666; font-size: 12px; }}
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1>Welcome to ViTale!</h1>
-        </div>
-        <div class='content'>
-            <p>Hi <strong>{fullName}</strong>,</p>
-            <p>Your account has been successfully verified! You can now:</p>
-            
-            <div class='feature'>
-                <strong>Explore Destinations</strong><br/>
-                Discover unique cultural sites across Vietnam
-            </div>
-            
-            <div class='feature'>
-                <strong>Collect Badges</strong><br/>
-                Check-in at destinations and earn special badges
-            </div>
-            
-            <div class='feature'>
-                <strong>Chat with AI</strong><br/>
-                Converse with AI characters to learn about local culture
-            </div>
-            
-            <div class='feature'>
-                <strong>Earn Rewards</strong><br/>
-                Use vouchers from our partners
-            </div>
-            
-            <p style='text-align: center;'>
-                <a href='{_frontendUrl}' class='button'>Start Exploring</a>
-            </p>
-            
-            <p>Have a wonderful experience!</p>
-        </div>
-        <div class='footer'>
-            <p>© 2026 ViTale - Explore Vietnamese Culture</p>
-        </div>
-    </div>
-</body>
-</html>";
+        
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates", "Emails", "Welcome.html");
+        var body = await File.ReadAllTextAsync(templatePath, ct);
+        body = body.Replace("{{FullName}}", fullName)
+                   .Replace("{{FrontendUrl}}", _frontendUrl);
 
         return await SendEmailAsync(toEmail, subject, body, ct);
     }

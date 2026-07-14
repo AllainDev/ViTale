@@ -12,9 +12,14 @@ namespace Infrastructure.Services;
 /// </summary>
 public class CheckinService : ICheckinService
 {
+    // Legacy constant kept to avoid breaking changes elsewhere; the active
+    // gating is `Checkpoint.Radius + accuracy buffer` per checkpoint below.
     private const int MaxCheckinRadiusMeters = 100;
-    private const int BaseCheckinXp = 50;
-    private const int DollBonusXp = 100;
+
+    // XP economics (kept here so future reward tuning is a one-line change):
+    //   First visit to a checkpoint           → BaseCheckinXp  (50 XP)
+    //   Bonus visit with a region-matching Doll → +DollBonusXp  (+100 XP)
+    // → Full first-time-with-doll reward       = 150 XP total.
 
     private readonly ApplicationDbContext _db;
     private readonly IGamificationService _gamification;
@@ -119,8 +124,8 @@ public class CheckinService : ICheckinService
             return Error("You have already checked in here and do not have a new doll bonus.", "NO_XP_AVAILABLE");
 
         // ── 5. Calculate XP to award ─────────────────────────────────────────
-        int xpToAward = isFirstCheckin ? BaseCheckinXp : 0;
-        if (dollBonusEligible) xpToAward += DollBonusXp;
+        int xpToAward = isFirstCheckin ? Domain.Constants.GamificationConstants.BaseCheckinXp : 0;
+        if (dollBonusEligible) xpToAward += Domain.Constants.GamificationConstants.DollBonusXp;
 
         // ── 6. Award XP ───────────────────────────────────────────────────────
         var xpSource = dollBonusEligible && !isFirstCheckin ? XpSource.Bonus : XpSource.Checkin;
@@ -138,7 +143,7 @@ public class CheckinService : ICheckinService
         }
 
         // ── 9. Persist CheckinRecord ──────────────────────────────────────────
-        var record = new CheckinRecord(
+        var record = CheckinRecord.CreateGamificationCheckin(
             userId: travelerId,
             checkpointId: checkpoint.Id,
             latitude: (double)latitude,

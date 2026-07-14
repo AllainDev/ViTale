@@ -14,7 +14,7 @@ public class ApplicationDbContextFactory : IDesignTimeDbContextFactory<Applicati
     {
         // Prefer actual connection string from env if available (e.g., in CI)
         var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING")
-            ?? "Host=localhost;Port=5432;Database=vitale_dev;Username=vitale;Password=vitale_dev_pass";
+            ?? "Host=localhost;Port=5432;Database=vitale_db;Username=postgres;Password=vitale_dev_password;Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20";
 
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(connectionString, npg =>
