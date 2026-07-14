@@ -51,7 +51,12 @@ services:
       ASPNETCORE_URLS: http://+:5000
       DB_CONNECTION_STRING: "Host=db;Port=5432;Database=vitale_db;Username=postgres;Password=${DB_PASSWORD:-vitale_dev_password};Pooling=true;Minimum Pool Size=1;Maximum Pool Size=20"
       JWT_SECRET: ${JWT_SECRET}
-      GROQ_API_KEY: ${GROQ_API_KEY}
+      GROQ_API_KEYS: ${GROQ_API_KEYS}
+      GROQ_BASE_URL: ${GROQ_BASE_URL:-https://api.groq.com/openai/v1}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
+      MINIMAX_API_KEY: ${MINIMAX_API_KEY:-}
+      MINIMAX_BASE_URL: ${MINIMAX_BASE_URL:-https://api.minimax.chat/v1}
+      MINIMAX_MODEL: ${MINIMAX_MODEL:-MiniMax-Text-01}
       AZURE_TTS_KEY: ${AZURE_TTS_KEY}
       AZURE_TTS_REGION: ${AZURE_TTS_REGION:-southeastasia}
       OAUTH_APPLE_CLIENT_ID: ${OAUTH_APPLE_CLIENT_ID}

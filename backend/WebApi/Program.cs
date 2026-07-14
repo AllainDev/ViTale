@@ -4,6 +4,7 @@ using Infrastructure.Persistence;
 using Infrastructure.Services;
 using Application.Interfaces.Repositories;
 using Application.Interfaces.Services;
+using Application.Services;
 using Infrastructure.Repositories;
 using WebApi.Middleware;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -94,8 +95,12 @@ try
             sp.GetRequiredService<ILoggerFactory>()
         ).Build());
 
+    // ── Hanoi AI Guide services (Scoped) ──
+    builder.Services.AddScoped<IHanoiKnowledgeService, HanoiKnowledgeService>();
+    builder.Services.AddScoped<ChatPromptBuilder>();
+    builder.Services.AddScoped<ChatToolExecutor>();
+
     // ── External Services (Scoped) ──────────────────────────────────────────
-    builder.Services.AddScoped<IAiChatService, GroqChatService>();
     builder.Services.AddScoped<ITextToSpeechService, AzureTtsService>();
     builder.Services.AddScoped<Application.Interfaces.Services.IAuthenticationService, JwtAuthService>();
     builder.Services.AddScoped<IEmailService, SmtpEmailService>();

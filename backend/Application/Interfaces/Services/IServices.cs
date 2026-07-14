@@ -2,13 +2,6 @@ namespace Application.Interfaces.Services;
 
 using Application.DTOs;
 
-// ── AI Chat ─────────────────────────────────────────────────
-public interface IAiChatService
-{
-    Task<AiChatResponse> SendMessageAsync(AiChatRequest request, CancellationToken ct = default);
-    Task<string?> SummarizeConversationAsync(string conversationHistory, CancellationToken ct = default);
-}
-
 
 
 
