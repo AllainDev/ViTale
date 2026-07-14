@@ -148,29 +148,35 @@ export default function AdminTokensPage() {
         </ol>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        {/* Col 1: 3D Preview */}
-        <div className="lg:col-span-1">
+        {/* Col 1: 3D Preview (Toàn thân) */}
+        <div className="lg:col-span-4 flex flex-col h-[calc(100vh-140px)]">
           {selectedDoll ? (
-             <div className="bg-slate-900 rounded shadow-sm border border-gray-200 h-[calc(100vh-140px)] relative flex-shrink-0 overflow-hidden">
-               {selectedDoll.modelUrl ? (
-                 <AvatarRenderer 
-                   lipsSyncEngine={null}
-                   animationTag="idle"
-                   modelUrl={selectedDoll.modelUrl}
-                 />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">
-                   Không có model 3D
-                 </div>
-               )}
-               <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs backdrop-blur-sm z-10">
-                 3D Preview: {selectedDoll.sku}
+             <div className="bg-slate-900 rounded shadow-sm border border-gray-200 h-full relative flex-shrink-0 flex flex-col overflow-hidden">
+               {/* Đưa text label ra một thanh header riêng thay vì overlay đè lên model */}
+               <div className="bg-slate-800 border-b border-slate-700 text-slate-300 px-3 py-2 text-xs font-semibold z-10 w-full flex justify-between">
+                 <span>3D Preview</span>
+                 <span className="text-slate-400 font-mono">{selectedDoll.sku}</span>
+               </div>
+               
+               <div className="flex-1 w-full relative">
+                 {selectedDoll.modelUrl ? (
+                   <AvatarRenderer 
+                     lipsSyncEngine={null}
+                     animationTag="idle"
+                     modelUrl={selectedDoll.modelUrl}
+                     cameraPosition={[0, 0, 4.5]} // Đẩy camera ra xa để thấy toàn thân
+                   />
+                 ) : (
+                   <div className="w-full h-full flex items-center justify-center text-slate-400 text-sm">
+                     Không có model 3D
+                   </div>
+                 )}
                </div>
              </div>
           ) : (
-            <div className="bg-gray-50 rounded border border-gray-200 border-dashed h-[calc(100vh-140px)] flex flex-col items-center justify-center text-gray-400">
+            <div className="bg-gray-50 rounded border border-gray-200 border-dashed h-full flex flex-col items-center justify-center text-gray-400">
               <QrCode size={48} className="mb-4 text-gray-300" />
               <p className="text-center px-4">Chọn một mẫu búp bê để xem</p>
             </div>
@@ -178,9 +184,9 @@ export default function AdminTokensPage() {
         </div>
 
         {/* Col 2 & 3: Tokens for selected Doll */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-5 flex flex-col h-[calc(100vh-140px)]">
           {selectedDoll ? (
-            <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col h-[calc(100vh-140px)]">
+            <div className="bg-white rounded shadow-sm border border-gray-200 flex flex-col h-full">
               <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50 flex-wrap gap-4">
                 <div>
                   <h3 className="font-bold text-gray-800 text-lg">Danh sách Token</h3>
@@ -193,13 +199,13 @@ export default function AdminTokensPage() {
                     min="1" max="100" 
                     value={generateCount} 
                     onChange={e => setGenerateCount(Number(e.target.value))}
-                    className="border border-gray-300 rounded px-2 py-1 w-20 text-sm outline-none focus:border-indigo-500" 
+                    className="border border-gray-300 rounded px-2 py-1 w-16 text-sm outline-none focus:border-indigo-500" 
                     title="Số lượng token tạo thêm"
                   />
                   <button 
                     type="submit" 
                     disabled={generating}
-                    className="bg-indigo-600 text-white px-4 py-1.5 rounded text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 font-medium whitespace-nowrap"
+                    className="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700 transition-colors disabled:opacity-50 font-medium whitespace-nowrap"
                   >
                     {generating ? 'Đang tạo...' : '+ Tạo mã'}
                   </button>
@@ -207,7 +213,7 @@ export default function AdminTokensPage() {
               </div>
 
               {/* Search Box */}
-              <div className="px-4 py-3 border-b border-gray-100">
+              <div className="px-4 py-3 border-b border-gray-100 bg-white">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                   <input 
@@ -232,22 +238,22 @@ export default function AdminTokensPage() {
                       <tr className="border-b border-gray-200 text-gray-500 bg-gray-50/50">
                         <th className="p-3 font-semibold">Token / QR String</th>
                         <th className="p-3 font-semibold">Trạng thái</th>
-                        <th className="p-3 font-semibold">Ngày tạo</th>
+                        <th className="p-3 font-semibold hidden md:table-cell">Ngày tạo</th>
                       </tr>
                     </thead>
                     <tbody className="text-gray-700">
                       {currentTokens.map(t => (
                         <tr key={t.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="p-3">
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                               <div className="bg-white p-1 rounded border border-gray-200 flex-shrink-0">
-                                <QRCodeSVG id={`qr-${t.id}`} value={t.token} size={48} includeMargin={true} />
+                                <QRCodeSVG id={`qr-${t.id}`} value={t.token} size={40} includeMargin={true} />
                               </div>
                               <div className="flex flex-col gap-1">
-                                <span className="font-mono font-medium text-gray-900">{t.token}</span>
+                                <span className="font-mono text-xs font-medium text-gray-900">{t.token}</span>
                                 <button 
                                   onClick={() => downloadQR(t.id, t.token)}
-                                  className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800 font-medium transition-colors w-fit"
+                                  className="flex items-center gap-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-medium transition-colors w-fit"
                                 >
                                   <Download size={14} /> Tải ảnh QR
                                 </button>
@@ -302,15 +308,17 @@ export default function AdminTokensPage() {
         </div>
 
         {/* Col 4: Doll List */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded border-t-4 border-indigo-600 shadow-sm h-[calc(100vh-140px)] flex flex-col">
+        <div className="lg:col-span-3 flex flex-col h-[calc(100vh-140px)]">
+          <div className="bg-white rounded border-t-4 border-indigo-600 shadow-sm h-full flex flex-col">
             <div className="p-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
               <h3 className="font-semibold text-gray-700">Các loại búp bê</h3>
               <button onClick={fetchDolls} className="text-gray-400 hover:text-indigo-600 transition-colors p-1"><RefreshCw size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-2 space-y-2">
               {loading ? (
-                <div className="text-center p-4 text-gray-400">Đang tải...</div>
+                <div className="flex justify-center p-4"><RefreshCw className="animate-spin text-gray-400" /></div>
+              ) : dolls.length === 0 ? (
+                <div className="text-center p-4 text-gray-500 text-sm">Chưa có sản phẩm Búp bê nào.</div>
               ) : dolls.map(d => (
                 <button
                   key={d.id}

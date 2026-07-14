@@ -10,29 +10,12 @@ public class Badge
     public string? Description { get; private set; }
     public string ImageUrl { get; private set; } = string.Empty;
     public ConditionType ConditionType { get; private set; }
-    public JsonDocument ConditionValue { get; private set; } = JsonDocument.Parse("{}");
+    public string ConditionValue { get; private set; } = "{}";
+
+    // ── Navigation properties ────────────────────────────────────────
+    public virtual ICollection<UserBadge> UserBadges { get; private set; } = new List<UserBadge>();
 
     protected Badge() { }
 }
 
-public class TravelerBadge
-{
-    public Guid TravelerId { get; private set; }
-    public Guid BadgeId { get; private set; }
-    public DateTime EarnedAt { get; private set; }
-
-    public Badge? Badge { get; private set; }
-
-    protected TravelerBadge() { }
-
-    public static TravelerBadge Create(Guid travelerId, Guid badgeId)
-    {
-        return new TravelerBadge
-        {
-            TravelerId = travelerId,
-            BadgeId = badgeId,
-            EarnedAt = DateTime.UtcNow
-        };
-    }
-}
 

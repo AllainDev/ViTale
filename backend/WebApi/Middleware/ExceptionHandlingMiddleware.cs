@@ -86,16 +86,17 @@ public class ExceptionHandlingMiddleware
     }
 }
 
-// ── Domain Exception Types ─────────────────────────────────────────────────
+
+// ── WebApi-layer Exception Types ───────────────────────────────────────────
+// These are thrown by controllers and handled by this middleware.
+// AiServiceException is defined in Domain.Exceptions (used by Infrastructure).
 public class ValidationException(string message) : Exception(message);
 public class NotFoundException(string message) : Exception(message);
 public class ConflictException(string message) : Exception(message);
 public class UnauthorizedException(string message) : Exception(message);
-public class AiServiceException(string message) : Exception(message);
 
 public class RateLimitExceededException(int retryAfterSeconds)
     : Exception($"Rate limit exceeded, retry in {retryAfterSeconds}s")
 {
     public int RetryAfterSeconds { get; } = retryAfterSeconds;
 }
-

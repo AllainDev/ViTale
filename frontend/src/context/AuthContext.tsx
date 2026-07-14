@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode';
 
 export interface User {
   id: string;
@@ -12,6 +11,14 @@ export interface User {
 
 interface AuthContextType {
   user: User | null;
+  isAuthenticated: boolean;
+  /**
+   * @deprecated Storing the JWT in component state forces the client to manage it,
+   * which conflicts with the HttpOnly cookie strategy. Use `isAuthenticated`
+   * and the `/auth/profile` endpoint instead. This setter is kept only for
+   * backward compatibility with existing call sites; the value is NOT used
+   * to attach the Authorization header — the HttpOnly cookie does that.
+   */
   jwt: string | null;
   setJwt: (token: string | null) => void;
   logout: () => void;
@@ -21,6 +28,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   jwt: null,
+  isAuthenticated: false,
   setJwt: () => {},
   logout: () => {},
   isLoading: true,
@@ -30,61 +38,90 @@ export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [jwtState, setJwtState] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const processToken = React.useCallback((token: string | null) => {
-    if (!token) {
-      setUser(null);
-      setJwtState(null);
-      return;
-    }
-    
+  // OWASP A02 + A07: NEVER store JWT in localStorage/sessionStorage. The server
+  // sets an HttpOnly `vitale_jwt` cookie on successful login/refresh, and
+  // `fetch(..., { credentials: 'include' })` sends it automatically.
+  //
+  // The user profile is resolved via `GET /auth/profile` which reads the cookie.
+  // We only need to know "am I logged in?" in the UI — that boolean comes from
+  // whether `/auth/profile` returns 200.
+  const refreshProfile = React.useCallback(async (overrideToken?: string | null) => {
     try {
-      const decoded = jwtDecode<any>(token);
-      const email = decoded.email || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress'];
-      const id = decoded.tid || decoded.sub || decoded['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier'];
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
       
-      setUser(prev => {
-        if (prev && prev.id === id) return prev; // Bail out if same user
-        return {
-          id: id || "unknown_id",
-          email: email || "",
-          isRegistered: true,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${id || email}`
-        };
+      const token = overrideToken !== undefined ? overrideToken : (typeof window !== 'undefined' ? localStorage.getItem('vitale_jwt') : null);
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      const res = await fetch(
+        `${baseUrl}/auth/profile`,
+        { credentials: 'include', cache: 'no-store', headers }
+      );
+      if (!res.ok) {
+        setUser(null);
+        setIsAuthenticated(false);
+        return;
+      }
+      const data = await res.json();
+      const avatarSeed = data.email || data.fullName || data.id || 'anonymous';
+      setUser({
+        id: data.id ?? 'unknown_id',
+        email: data.email || 'Khách',
+        isRegistered: data.isRegistered ?? false,
+        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(avatarSeed)}`,
       });
-      setJwtState(token);
-    } catch (e) {
-      console.error("Failed to decode JWT", e);
+      setIsAuthenticated(true);
+    } catch {
       setUser(null);
-      setJwtState(null);
+      setIsAuthenticated(false);
     }
   }, []);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('vitale_jwt');
-    if (savedToken) {
-      processToken(savedToken);
-    }
-    setIsLoading(false);
-  }, [processToken]);
+    refreshProfile().finally(() => setIsLoading(false));
+  }, [refreshProfile]);
 
-  const setJwt = React.useCallback((token: string | null) => {
-    if (token) {
-      localStorage.setItem('vitale_jwt', token);
-    } else {
+  const setJwt = React.useCallback((_token: string | null) => {
+    if (typeof window !== 'undefined') {
+      if (_token) {
+        localStorage.setItem('vitale_jwt', _token);
+      } else {
+        localStorage.removeItem('vitale_jwt');
+      }
+    }
+    // The server already wrote/cleared the HttpOnly cookie; we just need to
+    // re-fetch the profile to update UI state.
+    refreshProfile(_token);
+  }, [refreshProfile]);
+
+  const logout = React.useCallback(async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+      
+      const token = typeof window !== 'undefined' ? localStorage.getItem('vitale_jwt') : null;
+      const headers: HeadersInit = token ? { 'Authorization': `Bearer ${token}` } : {};
+      
+      // Call logout endpoint (server clears the HttpOnly cookie).
+      await fetch(
+        `${baseUrl}/auth/logout`,
+        { method: 'POST', credentials: 'include', headers }
+      );
+    } catch {
+      // Ignore network errors during logout — we still want to clear local state.
+    }
+    if (typeof window !== 'undefined') {
       localStorage.removeItem('vitale_jwt');
     }
-    processToken(token);
-  }, [processToken]);
-
-  const logout = React.useCallback(() => {
-    setJwt(null);
-  }, [setJwt]);
+    setUser(null);
+    setIsAuthenticated(false);
+  }, []);
 
   return (
-    <AuthContext.Provider value={{ user, jwt: jwtState, setJwt, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, jwt: null, setJwt, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

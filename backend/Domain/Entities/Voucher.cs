@@ -23,6 +23,25 @@ public class Voucher
     public bool IsNotYetValid => DateTime.UtcNow < ValidFrom;
 
     protected Voucher() { }
+
+    public static Voucher Create(Guid partnerId, string title, string? description, DiscountType discountType, decimal discountValue, decimal? minimumSpend, int? maxRedemptions, DateTime validFrom, DateTime validUntil)
+    {
+        return new Voucher
+        {
+            Id = Guid.NewGuid(),
+            PartnerId = partnerId,
+            Title = title,
+            Description = description,
+            DiscountType = discountType,
+            DiscountValue = discountValue,
+            MinimumSpend = minimumSpend,
+            MaxRedemptions = maxRedemptions,
+            ValidFrom = validFrom,
+            ValidUntil = validUntil,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
 }
 
 public class TravelerVoucher

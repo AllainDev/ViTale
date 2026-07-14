@@ -49,15 +49,13 @@ public class TokenService : ITokenService
     {
         _db = db;
 
-        // HMAC secret: read from env / appsettings, fall back to JWT secret if shared.
+        // HMAC secret: read from env / appsettings.
         // In production, set DOLL_TOKEN_HMAC_SECRET to a strong 32+ byte secret.
         _hmacSecret = configuration["DollToken:HmacSecret"]
                     ?? Environment.GetEnvironmentVariable("DOLL_TOKEN_HMAC_SECRET")
                     ?? configuration["DOLL_TOKEN_HMAC_SECRET"]
-                    ?? configuration["JWT_SECRET"]
-                    ?? Environment.GetEnvironmentVariable("JWT_SECRET")
                     ?? throw new InvalidOperationException(
-                        "DollToken:HmacSecret (or fallback DOLL_TOKEN_HMAC_SECRET / JWT_SECRET) is not configured.");
+                        "DollToken:HmacSecret (or fallback DOLL_TOKEN_HMAC_SECRET) is not configured.");
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -227,8 +225,6 @@ public class TokenService : ITokenService
     /// </summary>
     private static string GenerateCrockfordBase32Grouped(int groups, int groupSize)
     {
-        const int alphabetSize = 32;          // 2^5
-        const int maxValidByte = 256 - 256 % alphabetSize; // 256 - 0 = 256; OK
         // Note: 256 % 32 = 0 exactly, so rejection sampling is not strictly needed for 32.
         // We still use it for future-proofing if the alphabet ever changes.
 

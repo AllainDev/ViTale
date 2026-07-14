@@ -3,7 +3,7 @@ namespace Domain.Entities;
 public class DollToken
 {
     public Guid Id { get; private set; }
-    public string Token { get; private set; } = string.Empty; // 16-character random string
+    public string Token { get; private set; } = string.Empty; // VID-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX-XXXXX
     public Guid DollId { get; private set; }
     public Guid? UserId { get; private set; } // Null until claimed
     public DateTime GeneratedAt { get; private set; }
@@ -11,7 +11,12 @@ public class DollToken
     public DateTime? ExpiresAt { get; private set; }
     public bool IsUsed { get; private set; }
     public DateTime? UsedAt { get; private set; }
+    [System.ComponentModel.DataAnnotations.Timestamp]
     public byte[] RowVersion { get; private set; } = Array.Empty<byte>(); // For optimistic concurrency
+
+    // ── Navigation properties ────────────────────────────────────────
+    public virtual Product? Doll { get; private set; }
+    public virtual ICollection<CheckinRecord> CheckinRecords { get; private set; } = new List<CheckinRecord>();
 
     // EF Core
     protected DollToken() { }
@@ -24,7 +29,6 @@ public class DollToken
         GeneratedAt = DateTime.UtcNow;
         ExpiresAt = expiresAt;
         IsUsed = false;
-        RowVersion = Guid.NewGuid().ToByteArray();
     }
 
     /// <summary>
@@ -38,7 +42,6 @@ public class DollToken
 
         UserId = userId;
         ClaimedAt = DateTime.UtcNow;
-        RowVersion = Guid.NewGuid().ToByteArray();
     }
 
     /// <summary>
@@ -52,6 +55,14 @@ public class DollToken
 
         IsUsed = true;
         UsedAt = DateTime.UtcNow;
-        RowVersion = Guid.NewGuid().ToByteArray();
+    }
+
+    /// <summary>
+    /// Reassigns this token to a different user (migration only).
+    /// Used when an anonymous traveler's data is merged into a persistent account on login.
+    /// </summary>
+    public void ReassignUser(Guid newUserId)
+    {
+        UserId = newUserId;
     }
 }

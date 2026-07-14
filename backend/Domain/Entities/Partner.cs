@@ -19,5 +19,23 @@ public class Partner
     public ICollection<Voucher> Vouchers { get; private set; } = [];
 
     protected Partner() { }
+
+    public static Partner Create(string name, PartnerType type, string? contactEmail, string? phoneNumber, string? address, decimal? latitude, decimal? longitude, int priorityScore)
+    {
+        return new Partner
+        {
+            Id = Guid.NewGuid(),
+            Name = name,
+            Type = type,
+            ContactEmail = contactEmail,
+            PhoneNumber = phoneNumber,
+            Address = address,
+            Latitude = latitude,
+            Longitude = longitude,
+            PriorityScore = priorityScore,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
+    }
 }
 

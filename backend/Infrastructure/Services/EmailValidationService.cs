@@ -60,26 +60,22 @@ public class EmailValidationService : IEmailValidationService
 
     private async Task<List<string>> GetMxRecordsAsync(string domain, CancellationToken ct)
     {
-        return await Task.Run(() =>
+        var mxRecords = new List<string>();
+        try
         {
-            var mxRecords = new List<string>();
-
-            try
+            var lookup = new DnsClient.LookupClient();
+            var result = await lookup.QueryAsync(domain, DnsClient.QueryType.MX, cancellationToken: ct);
+            
+            var records = result.Answers.MxRecords();
+            foreach (var record in records)
             {
-                // Query DNS for MX records
-                var hostEntry = Dns.GetHostEntry(domain);
-                if (hostEntry.AddressList.Length > 0)
-                {
-                    // Domain resolves, likely valid
-                    mxRecords.Add(domain);
-                }
+                mxRecords.Add(record.Exchange.Value);
             }
-            catch (SocketException)
-            {
-                // DNS lookup failed - domain doesn't exist or no MX records
-            }
-
-            return mxRecords;
-        }, ct);
+        }
+        catch
+        {
+            // DNS lookup failed
+        }
+        return mxRecords;
     }
 }

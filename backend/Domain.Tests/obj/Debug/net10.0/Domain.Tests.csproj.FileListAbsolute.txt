@@ -164,3 +164,7 @@ C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\Infrastruct
 C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\Application.pdb
 C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\obj\Debug\net10.0\Domain.Tests.sourcelink.json
 C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\AWSSDK.Extensions.NETCore.Setup.dll
+C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\DnsClient.dll
+C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\Templates\Emails\PasswordReset.html
+C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\Templates\Emails\Verification.html
+C:\Users\Admin\Desktop\ViTale\backend\Domain.Tests\bin\Debug\net10.0\Templates\Emails\Welcome.html

@@ -6,14 +6,16 @@ import { Upload, X, CheckCircle, AlertCircle, FileIcon, Loader2 } from 'lucide-r
 type DropzoneProps = {
   accept: Record<string, string[]>;
   maxSizeMB: number;
-  uploadUrl: string;
-  onSuccess: (url: string) => void;
+  uploadUrl?: string;
+  onSuccess?: (url: string) => void;
+  onFileSelect?: (file: File) => void;
   label: string;
+  autoUpload?: boolean;
 };
 
-type UploadState = 'idle' | 'uploading' | 'success' | 'error';
+type UploadState = 'idle' | 'uploading' | 'success' | 'error' | 'selected';
 
-export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, label }: DropzoneProps) {
+export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, onFileSelect, label, autoUpload = true }: DropzoneProps) {
   const [state, setState]     = useState<UploadState>('idle');
   const [message, setMessage] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -27,44 +29,42 @@ export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, 
       return;
     }
 
+    if (!autoUpload) {
+      setState('selected');
+      setFileName(file.name);
+      setMessage('File đã chọn');
+      if (onFileSelect) onFileSelect(file);
+      return;
+    }
+
+    if (!uploadUrl) return;
+
     setState('uploading');
     setFileName(file.name);
     setMessage('');
 
     try {
-      // 1. Get presigned URL from backend
       const token = localStorage.getItem('vitale_admin_token') || '';
-      const presignedRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/upload-presigned-url?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          }
-        }
-      );
+      const formData = new FormData();
+      formData.append('file', file);
 
-      if (!presignedRes.ok) {
-        throw new Error('Failed to get presigned URL');
-      }
-
-      const { presignedUrl, publicUrl } = await presignedRes.json();
-
-      // 2. Upload directly to Cloudflare R2
-      const uploadRes = await fetch(presignedUrl, {
-        method: 'PUT',
-        body: file,
+      const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${uploadUrl}`, {
+        method: 'POST',
         headers: {
-          'Content-Type': file.type,
+          'Authorization': `Bearer ${token}`
         },
+        body: formData
       });
 
       if (!uploadRes.ok) {
-        throw new Error('Failed to upload file to R2');
+        const errText = await uploadRes.text();
+        throw new Error(errText || 'Upload failed');
       }
 
+      const data = await uploadRes.json();
       setState('success');
-      setMessage(publicUrl);
-      onSuccess(publicUrl);
+      setMessage('Upload thành công!');
+      if (onSuccess) onSuccess(data.url);
     } catch (err: any) {
       console.error(err);
       setState('error');
@@ -126,7 +126,16 @@ export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, 
           <CheckCircle className="w-8 h-8 text-emerald-400" />
           <p className="text-sm text-slate-300 font-medium">Upload thành công!</p>
           <p className="text-xs text-emerald-400 break-all font-mono bg-emerald-900/20 px-3 py-1.5 rounded-lg max-w-full">{message}</p>
-          <button onClick={reset} className="mt-2 text-xs text-slate-500 hover:text-white underline transition-colors">Upload file khác</button>
+          <button onClick={reset} className="mt-2 text-xs text-slate-500 hover:text-white underline transition-colors">Chọn file khác</button>
+        </div>
+      )}
+
+      {state === 'selected' && (
+        <div className="flex flex-col items-center gap-3">
+          <FileIcon className="w-8 h-8 text-emerald-400" />
+          <p className="text-sm text-slate-300 font-medium">File đã chọn</p>
+          <p className="text-xs text-emerald-400 break-all font-mono bg-emerald-900/20 px-3 py-1.5 rounded-lg max-w-full">{fileName}</p>
+          <button onClick={reset} className="mt-2 text-xs text-slate-500 hover:text-white underline transition-colors">Chọn file khác</button>
         </div>
       )}
 
@@ -140,3 +149,4 @@ export default function FileDropzone({ accept, maxSizeMB, uploadUrl, onSuccess, 
     </div>
   );
 }
+

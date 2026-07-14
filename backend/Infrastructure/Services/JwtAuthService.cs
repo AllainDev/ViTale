@@ -14,10 +14,10 @@ using Application.DTOs;
 /// <summary>JWT generation and validation using HS256 with a configurable secret.</summary>
 public class JwtAuthService : IAuthenticationService
 {
-    private const string TravelerIdClaim = "tid";
+    private const string TravelerIdClaim = Domain.Common.Constants.TidClaimType;
     private const string IsRegisteredClaim = "reg";
     private const string RoleClaim = "role";
-    private const int TokenExpiryDays = 7;
+    private const int TokenExpiryMinutes = 15;
     private const int RefreshWindowDays = 30;
 
     private readonly string _secret;
@@ -69,10 +69,18 @@ public class JwtAuthService : IAuthenticationService
             audience: "app.vitale.vn",
             claims: claims,
             notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddDays(TokenExpiryDays),
+            expires: DateTime.UtcNow.AddMinutes(TokenExpiryMinutes),
             signingCredentials: creds);
 
         return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public string GenerateRefreshToken()
+    {
+        var randomNumber = new byte[32];
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        rng.GetBytes(randomNumber);
+        return Convert.ToBase64String(randomNumber);
     }
 
     public string GenerateAdminJwt(Guid adminId, string username)
@@ -122,7 +130,7 @@ public class JwtAuthService : IAuthenticationService
             var jwt = (JwtSecurityToken)validated;
 
             // Token beyond refresh window is truly expired
-            if (DateTime.UtcNow > jwt.IssuedAt.AddDays(TokenExpiryDays + RefreshWindowDays))
+            if (DateTime.UtcNow > jwt.IssuedAt.AddMinutes(TokenExpiryMinutes).AddDays(RefreshWindowDays))
                 return null;
 
             var travelerId = Guid.Parse(jwt.Claims.First(c => c.Type == TravelerIdClaim).Value);
@@ -167,6 +175,12 @@ public class JwtAuthService : IAuthenticationService
         var payload = await response.Content.ReadFromJsonAsync<GoogleTokenPayload>(ct);
         if (payload is null)
             return new OAuthValidationResult(false, null, null, "Empty Google token response");
+
+        var expectedAud = Environment.GetEnvironmentVariable("GOOGLE_CLIENT_ID");
+        if (!string.IsNullOrEmpty(expectedAud) && payload.aud != expectedAud)
+        {
+            return new OAuthValidationResult(false, null, null, "Invalid Google audience (aud claim mismatch)");
+        }
 
         return new OAuthValidationResult(true, payload.sub, payload.email, null);
     }

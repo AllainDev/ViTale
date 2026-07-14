@@ -129,7 +129,9 @@ export default function Canvas({
       setProfileFullName(""); // reset to prevent flash of old name
       const fetchProfile = async () => {
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'}/auth/profile`, {
+          const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+          const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+          const res = await fetch(`${baseUrl}/auth/profile`, {
             credentials: 'include',
             headers: { 'Authorization': `Bearer ${localStorage.getItem('vitale_jwt')}` }
           });
@@ -157,7 +159,9 @@ export default function Canvas({
     setProfileLoading(true);
     setUpdateProfileMessage({ text: "", type: "" });
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'}/auth/profile`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+      const res = await fetch(`${baseUrl}/auth/profile`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
@@ -199,7 +203,9 @@ export default function Canvas({
     setProfileLoading(true);
     setChangePasswordMessage({ text: "", type: "" });
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1'}/auth/change-password`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+      const res = await fetch(`${baseUrl}/auth/change-password`, {
         method: 'POST',
         credentials: 'include',
         headers: { 
@@ -251,13 +257,15 @@ export default function Canvas({
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+      const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
       const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
       const body = authMode === 'login' 
         ? { email: authEmail.trim(), password: authPassword }
         : { email: authEmail.trim(), password: authPassword, fullName: authFullName.trim() };
 
-      const res = await fetch(`${apiUrl}${endpoint}`, {
+      const res = await fetch(`${baseUrl}${endpoint}`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
@@ -282,6 +290,7 @@ export default function Canvas({
 
       if (authMode === 'login' && data.token) {
         setJwt(data.token);
+        localStorage.setItem('vitale_jwt', data.token);
         if (data.user) {
           setProfileFullName(data.user.fullName);
           setProfileHasPassword(data.user.hasPassword);
@@ -309,7 +318,9 @@ export default function Canvas({
   // Collections from API
   const [apiProducts, setApiProducts] = useState<any[]>([]);
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/v1/collections`)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
+    const baseUrl = apiUrl.endsWith('/api/v1') ? apiUrl : `${apiUrl}/api/v1`;
+    fetch(`${baseUrl}/collections`, { cache: 'no-store' })
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setApiProducts(data); })
       .catch(() => {}); // Fallback to static data silently
@@ -335,13 +346,6 @@ export default function Canvas({
 
   useEffect(() => {
     if (activeScreen === "assistant" && user) {
-      // Dev bypass: skip the gamification/doll check and unlock chat immediately.
-      const isDev = typeof window !== 'undefined'
-        && new URLSearchParams(window.location.search).get('dev') === '1';
-      if (isDev) {
-        setChatBlocked(false);
-        return;
-      }
       gamificationApi.getStatus().then(status => {
         if (!status.ownedDolls || status.ownedDolls.length === 0) {
           setChatBlocked(true);
@@ -436,7 +440,7 @@ export default function Canvas({
                 <span className={currentLanguage === 'en' ? 'text-stone-900 z-10' : 'text-stone-400 z-10'}>EN</span>
               </div>
             </button>
-            {user ? (
+            {user?.isRegistered ? (
               <div className="relative">
                 <button
                   onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -465,12 +469,17 @@ export default function Canvas({
                         <User size={13} className="text-amber-600" />Hồ sơ của tôi
                       </button>
 
-                      <button 
-                        onClick={() => { setShowQRScanner(true); setProfileMenuOpen(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2"
-                      >
-                        <QrCode size={13} className="text-emerald-600" />Quét QR búp bê
-                      </button>
+                      {user?.isRegistered && (
+                        <button 
+                          onClick={() => { 
+                            setShowQRScanner(true); 
+                            setProfileMenuOpen(false); 
+                          }}
+                          className="w-full text-left px-4 py-2 text-sm text-stone-700 hover:bg-stone-50 transition-colors flex items-center gap-2"
+                        >
+                          <QrCode size={13} className="text-emerald-600" />Quét QR búp bê
+                        </button>
+                      )}
                       <div className="h-px bg-stone-100 mx-3" />
                       <button 
                         onClick={() => { logout(); setProfileMenuOpen(false); }}
@@ -517,7 +526,7 @@ export default function Canvas({
               }}
             >
               <span>{item.label}</span>
-              {(item.id === 'passport' || item.id === 'assistant') && !user && (
+              {(item.id === 'assistant') && !user?.isRegistered && (
                 <Lock size={9} className="text-stone-400" />
               )}
               {activeScreen === item.id && (
@@ -542,7 +551,7 @@ export default function Canvas({
             </div>
           </button>
           
-          {user ? (
+          {user?.isRegistered ? (
             <div className="relative">
               <button
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
@@ -588,13 +597,15 @@ export default function Canvas({
                       <ChevronRight size={14} className="text-stone-300" />
                     </button>
 
-                    <button 
-                      onClick={() => { setShowQRScanner(true); setProfileMenuOpen(false); }}
-                      className="w-full text-left px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors flex items-center justify-between"
-                    >
-                      <span className="flex items-center gap-2"><QrCode size={14} className="text-emerald-600" />Quét QR búp bê</span>
-                      <ChevronRight size={14} className="text-stone-300" />
-                    </button>
+                    {user?.isRegistered && (
+                      <button 
+                        onClick={() => { setShowQRScanner(true); setProfileMenuOpen(false); }}
+                        className="w-full text-left px-4 py-2.5 text-sm font-medium text-stone-700 hover:bg-stone-50 transition-colors flex items-center justify-between"
+                      >
+                        <span className="flex items-center gap-2"><QrCode size={14} className="text-emerald-600" />Quét QR búp bê</span>
+                        <ChevronRight size={14} className="text-stone-300" />
+                      </button>
+                    )}
                     <div className="h-px bg-stone-100 mx-3" />
                     <button 
                       onClick={() => { logout(); setProfileMenuOpen(false); }}
@@ -835,56 +846,13 @@ export default function Canvas({
                 </p>
               </div>
 
-              {/* Advanced Filter Toolbar */}
-              <div className="border-y border-stone-200/80 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 text-xs font-semibold text-stone-600">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="uppercase text-[10px] text-stone-400 font-mono font-bold mr-2">{t.region}:</span>
-                  {["All", "Northern", "Central", "Southern"].map(reg => (
-                    <button
-                      key={reg}
-                      onClick={() => setSelectedRegion(reg)}
-                      className={`px-3 py-1.5 rounded-full border transition-all ${
-                        selectedRegion === reg 
-                          ? "text-white" 
-                          : "border-stone-200 hover:border-stone-400 text-stone-600"
-                      }`}
-                      style={{
-                        backgroundColor: selectedRegion === reg ? brandTheme.primaryColor : "transparent",
-                        borderColor: selectedRegion === reg ? brandTheme.primaryColor : "#e5e7eb"
-                      }}
-                    >
-                      {reg}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="uppercase text-[10px] text-stone-400 font-mono font-bold mr-2">{t.material}:</span>
-                  {["All", "Organic Cotton", "Recycled Paper", "Silk"].map(mat => (
-                    <button
-                      key={mat}
-                      onClick={() => setSelectedMaterial(mat)}
-                      className={`px-3 py-1.5 rounded-full border transition-all ${
-                        selectedMaterial === mat 
-                          ? "text-white" 
-                          : "border-stone-200 hover:border-stone-400 text-stone-600"
-                      }`}
-                      style={{
-                        backgroundColor: selectedMaterial === mat ? brandTheme.secondaryColor : "transparent",
-                        borderColor: selectedMaterial === mat ? brandTheme.secondaryColor : "#e5e7eb"
-                      }}
-                    >
-                      {mat}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* Region filter removed: collection items are now driven by the
+                  admin-managed data via /api/v1/collections. Showing every item
+                  below so the storefront always mirrors the admin catalog. */}
 
               {/* Product list */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {products
-                  .filter((prod: any) => selectedRegion === "All" || prod.region === selectedRegion)
-                  .filter((prod: any) => selectedMaterial === "All" || prod.material === selectedMaterial)
                   .map((prod: any) => {
                     const priceVal = prices[prod.id] || prod.price;
                     return (
@@ -898,10 +866,7 @@ export default function Canvas({
                             alt={prod.title || prod.name} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
-                          <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-2.5 py-1 rounded-full border text-[9px] font-bold flex items-center gap-1.5 shadow-sm">
-                            <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: brandTheme.secondaryColor }} />
-                            <span>{prod.region} Vietnam</span>
-                          </div>
+                          
                           {prod.badge && (
                             <div className="absolute top-3 right-3 bg-emerald-700 text-white px-2.5 py-1 rounded-full text-[9px] font-bold">
                               {prod.badge}
@@ -962,23 +927,23 @@ export default function Canvas({
           {/* ========================================================= */}
           {/* SCREEN 4: 3D ASSISTANT CHAT SCREEN (Màn hình 3)            */}
           {/* ========================================================= */}
-          {activeScreen === "assistant" && (!user || chatBlocked) && (
+          {activeScreen === "assistant" && (!user?.isRegistered || chatBlocked) && (
             <div className="flex flex-col items-center justify-center min-h-[480px] p-10 animate-fadeIn text-center gap-6">
               <div className="w-20 h-20 rounded-full bg-emerald-50 border-2 border-emerald-200 flex items-center justify-center">
                 <Bot className="w-9 h-9 text-emerald-700" />
               </div>
               <div className="space-y-2 max-w-sm">
-                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Nàng Mai</h2>
+                <h2 className="font-serif text-2xl font-bold text-stone-800">Trợ lý 3D Tô Nữ</h2>
                 <p className="text-stone-500 text-sm leading-relaxed">
-                  {!user
-                    ? "Đăng nhập để trò chuyện cùng Nàng Mai — trợ lý AI di sản văn hoá Việt Nam của bạn."
+                  {!user?.isRegistered 
+                    ? "Đăng nhập để trò chuyện cùng Nàng Tô Nữ — trợ lý AI di sản văn hoá Việt Nam của bạn."
                     : "Tài khoản của bạn chưa sở hữu bất kỳ Nhân vật 3D nào. Hãy sưu tầm Búp bê và quét mã QR để mở khóa tính năng Chat nhé!"
                   }
                 </p>
               </div>
               <button
                 onClick={() => { 
-                  if (!user) {
+                  if (!user?.isRegistered) {
                     setAuthMode("login"); setActiveScreen("auth");
                   } else {
                     setShowQRScanner(true);
@@ -987,7 +952,7 @@ export default function Canvas({
                 className="px-8 py-3 rounded-full text-sm font-bold text-white shadow-lg hover:scale-105 transition-all"
                 style={{ backgroundColor: brandTheme.primaryColor }}
               >
-                {!user ? "Đăng nhập ngay" : "Quét mã QR ngay"}
+                {!user?.isRegistered ? "Đăng nhập ngay" : "Quét mã QR ngay"}
               </button>
             </div>
           )}
@@ -1330,7 +1295,21 @@ export default function Canvas({
                 <div className="bg-white rounded-3xl border border-stone-200 p-6 md:p-8 shadow-sm">
                   <h2 className="text-lg font-serif font-black text-stone-800 mb-4">{t.profile_alt?.accountInfo || "Cài đặt tài khoản"}</h2>
                   
-                  <form onSubmit={handleUpdateProfile} noValidate className="space-y-4 mb-8">
+                  {!user.isRegistered ? (
+                    <div className="bg-amber-50 rounded-2xl p-6 text-center">
+                      <p className="text-stone-700 font-medium mb-4">
+                        Bạn đang sử dụng tài khoản khách. Đăng ký ngay để lưu giữ hành trình và bảo vệ tài sản của bạn!
+                      </p>
+                      <button
+                        onClick={() => { setActiveScreen("auth"); setAuthMode("register"); setProfileMenuOpen(false); }}
+                        className="px-6 py-2 bg-amber-600 text-white rounded-full font-bold hover:bg-amber-700 transition-colors"
+                      >
+                        Đăng ký / Đăng nhập
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <form onSubmit={handleUpdateProfile} noValidate className="space-y-4 mb-8">
                     {updateProfileMessage.text && (
                       <div className={`p-3 rounded-xl mb-4 text-sm font-medium ${updateProfileMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                         {updateProfileMessage.text}
@@ -1407,6 +1386,8 @@ export default function Canvas({
                       </form>
                     </>
                   )}
+                  </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1441,6 +1422,7 @@ export default function Canvas({
                 if (res.success) {
                   const bonusText = res.retroactiveBonusAwarded ? ` +${res.xpAwarded} XP Hồi tố!` : "";
                   triggerToast(`🎉 Thu thập thành công ${res.dollName}!${bonusText}`);
+                  setChatBlocked(false);
                 }
               } catch (e: any) {
                 triggerToast(`Lỗi: ${e.message}`);
@@ -1455,4 +1437,9 @@ export default function Canvas({
       </div>
     );
   }
+
+
+
+
+
 

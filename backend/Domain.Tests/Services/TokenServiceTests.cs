@@ -41,7 +41,7 @@ public class TokenServiceTests : IDisposable
     // Helper: create a Doll product in the InMemory DB so the type-check passes.
     private async Task<Guid> CreateDollAsync(string region = "Hà Nội")
     {
-        var doll = Product.Create(sku: null, ProductType.Doll, region);
+        var doll = Product.Create("Test Doll", region, ProductType.Doll);
         _context.Products.Add(doll);
         await _context.SaveChangesAsync();
         return doll.Id;

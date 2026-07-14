@@ -3,6 +3,12 @@
 import { useEffect, useState } from 'react';
 import { Package, Search, Edit2, Trash2, X, Plus, Image as ImageIcon } from 'lucide-react';
 import FileDropzone from '@/components/admin/FileDropzone';
+import { formatPrice } from '@/lib/utils';
+
+const PRODUCT_TYPES = [
+  { value: 'Doll', label: '🪆 Búp bê (Doll)' },
+  { value: 'PassportCover', label: '📔 Vỏ hộ chiếu' },
+];
 
 type Product = {
   id: string;
@@ -13,6 +19,8 @@ type Product = {
   price?: string;
   imageUrl?: string;
   isHighlight?: boolean;
+  sku?: string;
+  productType?: string;
 };
 
 export default function AdminProductsPage() {
@@ -26,6 +34,10 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | Partial<Product> | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string>('');
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => { setToastMsg({ text, type }); setTimeout(() => setToastMsg(null), 3000); };
+
   const getHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('vitale_admin_token')}`
   });
@@ -33,7 +45,7 @@ export default function AdminProductsPage() {
   const fetchProducts = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/collections?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/products?page=${page}&pageSize=${pageSize}&search=${encodeURIComponent(search)}`, {
         headers: getHeaders()
       });
       if (res.ok) {
@@ -49,18 +61,26 @@ export default function AdminProductsPage() {
     fetchProducts();
   }, [page, search]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa sản phẩm này?')) return;
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/collections/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/products/${deleteConfirmId}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
-      if (res.ok) fetchProducts();
-    } catch (e) {
-      console.error(e);
+      if (res.ok) {
+        showToast('Đã xóa sản phẩm', 'success');
+        fetchProducts();
+      } else {
+        showToast('Có lỗi xảy ra khi xóa', 'error');
+      }
+    } catch {
+      showToast('Có lỗi xảy ra khi xóa', 'error');
     }
+    setDeleteConfirmId(null);
   };
+
+  const handleDelete = (id: string) => setDeleteConfirmId(id);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,15 +88,17 @@ export default function AdminProductsPage() {
     
     const isEditing = !!(editingProduct as Product).id;
     const url = isEditing 
-      ? `${process.env.NEXT_PUBLIC_API_URL}/admin/collections/${(editingProduct as Product).id}`
-      : `${process.env.NEXT_PUBLIC_API_URL}/admin/collections`;
+      ? `${process.env.NEXT_PUBLIC_API_URL}/admin/products/${(editingProduct as Product).id}`
+      : `${process.env.NEXT_PUBLIC_API_URL}/admin/products`;
       
     const payload = {
       name: editingProduct.name || '',
-      region: editingProduct.region || 'VN',
+      region: editingProduct.region || '',
+      productType: (editingProduct as Product).productType || 'PassportCover',
+      sku: editingProduct.sku || null,
       description: editingProduct.description || '',
       material: editingProduct.material || '',
-      price: (editingProduct.price || 0).toString(),
+      price: (editingProduct.price || '').toString(),
       imageUrl: uploadedUrl || editingProduct.imageUrl || '',
       isHighlight: editingProduct.isHighlight || false
     };
@@ -90,12 +112,14 @@ export default function AdminProductsPage() {
       if (res.ok) {
         setEditingProduct(null);
         setUploadedUrl('');
+        showToast('Lưu sản phẩm thành công!', 'success');
         fetchProducts();
       } else {
-        alert('Có lỗi xảy ra khi lưu.');
+        showToast('Có lỗi xảy ra khi lưu.', 'error');
       }
     } catch (e) {
       console.error(e);
+      showToast('Có lỗi xảy ra khi lưu.', 'error');
     }
   };
 
@@ -103,10 +127,15 @@ export default function AdminProductsPage() {
 
   return (
     <div>
+      {toastMsg && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded shadow-lg z-50 animate-fadeIn ${toastMsg.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+          {toastMsg.text}
+        </div>
+      )}
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800 m-0">Sản phẩm thực tế</h1>
+          <h1 className="text-2xl font-bold text-gray-800 m-0">Sản phẩm</h1>
         </div>
         <ol className="flex text-sm text-gray-500">
           <li><a href="/admin/dashboard" className="text-blue-600 hover:underline">Home</a></li>
@@ -120,7 +149,7 @@ export default function AdminProductsPage() {
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
           <h3 className="font-semibold text-gray-700">Danh sách sản phẩm</h3>
           <button 
-            onClick={() => { setEditingProduct({}); setUploadedUrl(''); }}
+            onClick={() => { setEditingProduct({ productType: 'PassportCover' }); setUploadedUrl(''); }}
             className="bg-blue-600 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
           >
             <Plus size={16} /> Thêm mới
@@ -149,6 +178,7 @@ export default function AdminProductsPage() {
                 <tr className="bg-gray-100 text-gray-700 border-b border-gray-200">
                   <th className="p-3 font-semibold">Hình ảnh</th>
                   <th className="p-3 font-semibold">Tên SP</th>
+                  <th className="p-3 font-semibold">Loại</th>
                   <th className="p-3 font-semibold">Khu vực</th>
                   <th className="p-3 font-semibold">Giá</th>
                   <th className="p-3 font-semibold text-right">Thao tác</th>
@@ -156,9 +186,9 @@ export default function AdminProductsPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-gray-500">Đang tải...</td></tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-gray-500">Đang tải...</td></tr>
                 ) : products.length === 0 ? (
-                  <tr><td colSpan={5} className="p-8 text-center text-gray-500">Không tìm thấy dữ liệu</td></tr>
+                  <tr><td colSpan={6} className="p-8 text-center text-gray-500">Không tìm thấy dữ liệu</td></tr>
                 ) : (
                   products.map(p => (
                     <tr key={p.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
@@ -179,9 +209,16 @@ export default function AdminProductsPage() {
                       <td className="p-3">
                         <span className="font-medium text-gray-800">{p.name}</span>
                         {p.isHighlight && <span className="ml-2 text-[10px] uppercase font-bold bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Nổi bật</span>}
+                        {p.sku && <div className="text-xs text-gray-400 mt-0.5">SKU: {p.sku}</div>}
+                      </td>
+                      <td className="p-3">
+                        {p.productType === 'Doll' 
+                          ? <span className="inline-flex items-center gap-1 text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-xs font-semibold">🪆 Búp bê</span>
+                          : <span className="inline-flex items-center gap-1 text-gray-500 bg-gray-100 px-2 py-0.5 rounded text-xs">📔 Vỏ hộ chiếu</span>
+                        }
                       </td>
                       <td className="p-3 text-gray-600">{p.region}</td>
-                      <td className="p-3 font-medium text-gray-800">{p.price || '-'}</td>
+                      <td className="p-3 font-medium text-gray-800">{formatPrice(p.price)}</td>
                       <td className="p-3 text-right">
                         <button onClick={() => { setEditingProduct(p); setUploadedUrl(p.imageUrl || ''); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors mx-1" title="Sửa"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete(p.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors mx-1" title="Xóa"><Trash2 size={16} /></button>
@@ -217,6 +254,28 @@ export default function AdminProductsPage() {
             
             <div className="p-4 flex-1">
               <form id="productForm" onSubmit={handleSave} className="space-y-4">
+                {/* Loại sản phẩm */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Loại sản phẩm <span className="text-red-500">*</span></label>
+                  <div className="flex gap-3">
+                    {PRODUCT_TYPES.map(pt => (
+                      <label key={pt.value} className={`flex-1 flex items-center gap-2 p-3 border rounded cursor-pointer transition-all ${(editingProduct.productType || 'PassportCover') === pt.value ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-200 hover:bg-gray-50'}`}>
+                        <input 
+                          type="radio" 
+                          name="productType" 
+                          value={pt.value}
+                          checked={(editingProduct.productType || 'PassportCover') === pt.value}
+                          onChange={e => setEditingProduct({...editingProduct, productType: e.target.value})}
+                          className="accent-blue-600"
+                          disabled={!!(editingProduct as Product).id} // Can't change type of existing product
+                        />
+                        <span className="text-sm font-medium">{pt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  {!!(editingProduct as Product).id && <p className="text-xs text-gray-400 mt-1">Không thể đổi loại sản phẩm sau khi đã tạo.</p>}
+                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Tên sản phẩm <span className="text-red-500">*</span></label>
@@ -228,14 +287,18 @@ export default function AdminProductsPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Giá (VNĐ)</label>
-                    <input type="text" value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="VD: 150,000" />
+                    <input type="text" value={editingProduct.price || ''} onChange={e => setEditingProduct({...editingProduct, price: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="VD: ₫850,000" />
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Chất liệu</label>
                     <input type="text" value={editingProduct.material || ''} onChange={e => setEditingProduct({...editingProduct, material: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">Mã SKU</label>
+                    <input type="text" value={editingProduct.sku || ''} onChange={e => setEditingProduct({...editingProduct, sku: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="VD: SKU-HN-001" />
                   </div>
                 </div>
 
@@ -247,16 +310,16 @@ export default function AdminProductsPage() {
                 <div className="bg-gray-50 border border-gray-200 rounded p-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Hình ảnh sản phẩm</label>
                   <FileDropzone 
-                    uploadUrl="" // handled internally now via useR2Upload
+                    uploadUrl="/admin/upload-product-image"
                     accept={{ 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] }} 
                     maxSizeMB={5} 
                     label="Kéo thả hoặc click để chọn ảnh" 
                     onSuccess={(url) => setUploadedUrl(url)} 
                   />
-                  {uploadedUrl && (
+                  {(uploadedUrl || editingProduct.imageUrl) && (
                     <div className="mt-3 flex items-center gap-3 bg-white border border-gray-200 p-2 rounded">
-                      <img src={uploadedUrl} alt="Preview" className="w-12 h-12 rounded object-cover" />
-                      <div className="text-xs text-blue-600 truncate flex-1 underline"><a href={uploadedUrl} target="_blank">{uploadedUrl}</a></div>
+                      <img src={uploadedUrl || editingProduct.imageUrl} alt="Preview" className="w-12 h-12 rounded object-cover" />
+                      <div className="text-xs text-blue-600 truncate flex-1 underline"><a href={uploadedUrl || editingProduct.imageUrl} target="_blank">{uploadedUrl || editingProduct.imageUrl}</a></div>
                       <button type="button" onClick={() => setUploadedUrl('')} className="p-1 hover:bg-red-50 text-red-500 rounded"><X size={16}/></button>
                     </div>
                   )}
@@ -278,6 +341,34 @@ export default function AdminProductsPage() {
               <button onClick={() => setEditingProduct(null)} className="px-4 py-1.5 text-sm font-medium border border-gray-300 bg-white rounded hover:bg-gray-50 text-gray-700 transition-colors">Đóng</button>
               <button form="productForm" type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-sm rounded font-medium transition-colors shadow-sm">
                 Lưu Sản Phẩm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal Confirm Delete */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center transform transition-all scale-100">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Xóa sản phẩm</h3>
+            <p className="text-gray-500 mb-6 text-sm">
+              Bạn có chắc chắn muốn xóa sản phẩm này? Thao tác này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-6 py-2.5 rounded-full font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors flex-1"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-6 py-2.5 rounded-full font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-md hover:shadow-lg flex-1"
+              >
+                Xóa ngay
               </button>
             </div>
           </div>

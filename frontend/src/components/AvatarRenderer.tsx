@@ -170,6 +170,7 @@ function LoadingFallback() {
 // ──────────────────────────────────────────────────────────────────────────────
 
 interface AvatarRendererProps {
+  cameraPosition?: [number, number, number];
   lipsSyncEngine: LipsSyncEngine | null;
   animationTag: 'idle' | 'talking';
   onAvatarLoaded?: (scene: THREE.Object3D) => void;
@@ -306,3 +307,5 @@ export default function AvatarRenderer({
 if (typeof window !== 'undefined') {
   useGLTF.preload(AVATAR_MODEL_URL, true);
 }
+
+

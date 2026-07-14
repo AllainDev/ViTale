@@ -153,3 +153,7 @@ C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\obj\Debug\net10.0\
 C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\DotNetEnv.dll
 C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Superpower.dll
 C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\AWSSDK.Extensions.NETCore.Setup.dll
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\DnsClient.dll
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Templates\Emails\PasswordReset.html
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Templates\Emails\Verification.html
+C:\Users\Admin\Desktop\ViTale\backend\WebApi.IntegrationTests\bin\Debug\net10.0\Templates\Emails\Welcome.html

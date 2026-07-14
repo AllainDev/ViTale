@@ -1,7 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Domain.Entities;
 using Domain.Enums;
-using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Persistence;
 
@@ -18,14 +17,14 @@ public class ApplicationDbContext : DbContext
     public DbSet<CheckinRecord> CheckinRecords => Set<CheckinRecord>();
     public DbSet<Stamp> Stamps => Set<Stamp>();
     public DbSet<Badge> Badges => Set<Badge>();
-    public DbSet<TravelerBadge> TravelerBadges => Set<TravelerBadge>();
+
     public DbSet<Partner> Partners => Set<Partner>();
     public DbSet<Voucher> Vouchers => Set<Voucher>();
     public DbSet<TravelerVoucher> TravelerVouchers => Set<TravelerVoucher>();
     public DbSet<ChatSession> ChatSessions => Set<ChatSession>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     public DbSet<Translation> Translations => Set<Translation>();
-    public DbSet<CollectionItem> CollectionItems => Set<CollectionItem>();
+    // CollectionItem removed — catalog data is now stored directly on Product.
     public DbSet<AdminUser> AdminUsers => Set<AdminUser>();
     public DbSet<DollToken> DollTokens => Set<DollToken>();
     public DbSet<UserGamificationProfile> UserGamificationProfiles => Set<UserGamificationProfile>();
@@ -46,10 +45,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.AnonymousId).HasColumnName("anonymous_id").HasMaxLength(12);
             e.Property(x => x.LinkedAccountId).HasColumnName("linked_account_id");
-            e.Property(x => x.Preferences).HasColumnName("preferences").HasColumnType("jsonb")
-             .HasConversion(
-                v => v == null ? null : v.RootElement.GetRawText(),
-                v => v == null ? null : JsonDocument.Parse(v));
+            e.Property(x => x.Preferences).HasColumnName("preferences").HasColumnType("jsonb");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
 
             e.HasIndex(x => x.AnonymousId).IsUnique().HasDatabaseName("idx_travelers_anonymous_id");
@@ -104,22 +100,47 @@ public class ApplicationDbContext : DbContext
         });
 
         // ── Product ───────────────────────────────────────────
-        // NOTE: A "Product" here represents a Doll MODEL (e.g., "Búp bê Hà Nội").
-        // Each physical unit has its own DollToken. The QR code printed on the
-        // physical packaging is DollToken.Token, NOT a field on Product.
+        // A Product serves as both the customer-facing catalog item AND the
+        // gamification entity. Products of type Doll can be linked to a 3D Character
+        // model and have QR DollTokens. All products appear in the customer catalog.
         modelBuilder.Entity<Product>(e =>
         {
             e.ToTable("products");
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
+
+            // Catalog display fields
+            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
+            e.Property(x => x.Description).HasColumnName("description");
+            e.Property(x => x.Material).HasColumnName("material").HasMaxLength(100);
+            e.Property(x => x.Price).HasColumnName("price").HasMaxLength(50);
+            e.Property(x => x.IsHighlight).HasColumnName("is_highlight").HasDefaultValue(false);
+            e.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
+
+            // Classification fields
             e.Property(x => x.Sku).HasColumnName("sku").HasMaxLength(64).IsRequired(false);
             e.Property(x => x.ProductType).HasColumnName("product_type")
              .HasConversion(v => v.ToString(), v => Enum.Parse<ProductType>(v));
-            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(50);
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
+            e.Property(x => x.ImageUrl).HasColumnName("image_url").IsRequired(false);
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
 
             e.HasIndex(x => x.Sku).HasDatabaseName("idx_products_sku")
              .HasFilter("sku IS NOT NULL");
+            e.HasIndex(x => new { x.ProductType, x.Region })
+             .HasDatabaseName("idx_products_type_region");
+            e.HasIndex(x => x.IsDeleted).HasDatabaseName("idx_products_is_deleted");
+
+            e.HasMany(x => x.DollTokens)
+             .WithOne(t => t.Doll)
+             .HasForeignKey(t => t.DollId)
+             .OnDelete(DeleteBehavior.Restrict);
+
+            e.HasMany(x => x.Characters)
+             .WithOne(c => c.Product)
+             .HasForeignKey(c => c.ProductId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Character ─────────────────────────────────────────
@@ -129,12 +150,10 @@ public class ApplicationDbContext : DbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.Name).HasColumnName("name").HasMaxLength(100);
-            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
+            e.Property(x => x.ProductId).HasColumnName("product_id");
             e.Property(x => x.ModelUrl).HasColumnName("model_url");
-            e.Property(x => x.AnimationClips).HasColumnName("animation_clips").HasColumnType("jsonb")
-             .HasConversion(
-                v => v.RootElement.GetRawText(),
-                v => JsonDocument.Parse(v));
+            e.Property(x => x.AnimationClips).HasColumnName("animation_clips").HasColumnType("jsonb");
             e.Property(x => x.Description).HasColumnName("description");
             e.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
         });
@@ -147,11 +166,8 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.Id).HasColumnName("id");
             e.Property(x => x.Title).HasColumnName("title").HasMaxLength(200);
             e.Property(x => x.ContentKey).HasColumnName("content_key").HasMaxLength(100);
-            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
-            e.Property(x => x.UnlockCondition).HasColumnName("unlock_condition").HasColumnType("jsonb")
-             .HasConversion(
-                v => v.RootElement.GetRawText(),
-                v => JsonDocument.Parse(v));
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
+            e.Property(x => x.UnlockCondition).HasColumnName("unlock_condition").HasColumnType("jsonb");
             e.Property(x => x.SortOrder).HasColumnName("sort_order");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
         });
@@ -167,7 +183,7 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.Longitude).HasColumnName("longitude").HasColumnType("decimal(10,7)");
             e.Property(x => x.Radius).HasColumnName("radius");
             e.Property(x => x.StoryChapterId).HasColumnName("story_chapter_id");
-            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(10);
+            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
             e.Property(x => x.StoryAssetUrl).HasColumnName("story_asset_url").IsRequired(false);
             e.Property(x => x.IsActive).HasColumnName("is_active");
             e.Property(x => x.CreatedAt).HasColumnName("created_at");
@@ -207,6 +223,13 @@ public class ApplicationDbContext : DbContext
 
             e.HasOne(x => x.Traveler).WithMany().HasForeignKey(x => x.TravelerId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Checkpoint).WithMany().HasForeignKey(x => x.CheckpointId).OnDelete(DeleteBehavior.Cascade);
+
+            // Tight FK to DollToken — nullable so set-null on delete preserves CheckinRecord.
+            e.HasOne(x => x.DollToken)
+             .WithMany(t => t.CheckinRecords)
+             .HasForeignKey(x => x.DollTokenId)
+             .IsRequired(false)
+             .OnDelete(DeleteBehavior.SetNull);
         });
 
         // ── Stamp ─────────────────────────────────────────────
@@ -236,24 +259,9 @@ public class ApplicationDbContext : DbContext
             e.Property(x => x.ImageUrl).HasColumnName("image_url");
             e.Property(x => x.ConditionType).HasColumnName("condition_type")
              .HasConversion(v => v.ToString(), v => Enum.Parse<ConditionType>(v));
-            e.Property(x => x.ConditionValue).HasColumnName("condition_value").HasColumnType("jsonb")
-             .HasConversion(
-                v => v.RootElement.GetRawText(),
-                v => JsonDocument.Parse(v));
+            e.Property(x => x.ConditionValue).HasColumnName("condition_value").HasColumnType("jsonb");
         });
 
-        // ── TravelerBadge ──────────────────────────────────────
-        modelBuilder.Entity<TravelerBadge>(e =>
-        {
-            e.ToTable("traveler_badges");
-            e.HasKey(x => new { x.TravelerId, x.BadgeId });
-            e.Property(x => x.TravelerId).HasColumnName("traveler_id");
-            e.Property(x => x.BadgeId).HasColumnName("badge_id");
-            e.Property(x => x.EarnedAt).HasColumnName("earned_at");
-
-            e.HasIndex(x => x.TravelerId).HasDatabaseName("idx_traveler_badges_traveler_id");
-            e.HasOne(x => x.Badge).WithMany().HasForeignKey(x => x.BadgeId).OnDelete(DeleteBehavior.Cascade);
-        });
 
         // ── Partner ───────────────────────────────────────────
         modelBuilder.Entity<Partner>(e =>
@@ -402,21 +410,7 @@ public class ApplicationDbContext : DbContext
             e.HasIndex(x => x.UserId).HasDatabaseName("idx_xp_transactions_user_id");
         });
 
-        // ── CollectionItem ────────────────────────────────────
-        modelBuilder.Entity<CollectionItem>(e =>
-        {
-            e.ToTable("collection_items");
-            e.HasKey(x => x.Id);
-            e.Property(x => x.Id).HasColumnName("id");
-            e.Property(x => x.Name).HasColumnName("name").HasMaxLength(200);
-            e.Property(x => x.Region).HasColumnName("region").HasMaxLength(100);
-            e.Property(x => x.Description).HasColumnName("description");
-            e.Property(x => x.Material).HasColumnName("material").HasMaxLength(100);
-            e.Property(x => x.Price).HasColumnName("price").HasMaxLength(50);
-            e.Property(x => x.ImageUrl).HasColumnName("image_url");
-            e.Property(x => x.IsHighlight).HasColumnName("is_highlight");
-            e.Property(x => x.IsDeleted).HasColumnName("is_deleted").HasDefaultValue(false);
-        });
+        // CollectionItem table removed — data migrated to products table.
 
         // ── UserGamificationProfile ────────────────────────────
         modelBuilder.Entity<UserGamificationProfile>(e =>
@@ -437,13 +431,15 @@ public class ApplicationDbContext : DbContext
             e.HasIndex(x => x.UserId).IsUnique()
              .HasDatabaseName("idx_user_gamification_profiles_user_id");
 
+            // Two-way nav: Stamps ↔ Profile (cascade delete of profile purges stamps).
             e.HasMany(x => x.Stamps)
-             .WithOne()
+             .WithOne(s => s.Profile)
              .HasForeignKey(s => s.UserId)
              .OnDelete(DeleteBehavior.Cascade);
 
+            // Two-way nav: Badges ↔ Profile (cascade delete of profile purges badges).
             e.HasMany(x => x.Badges)
-             .WithOne()
+             .WithOne(b => b.Profile)
              .HasForeignKey(b => b.UserId)
              .OnDelete(DeleteBehavior.Cascade);
 
@@ -454,6 +450,9 @@ public class ApplicationDbContext : DbContext
         });
 
         // ── UserStamp ──────────────────────────────────────────
+        // Navigations: Profile (FK to UserGamificationProfile, cascade) +
+        //              Checkpoint (FK to Checkpoint, restrict — do not cascade-delete
+        //              a checkpoint just because a user earned a stamp there).
         modelBuilder.Entity<UserStamp>(e =>
         {
             e.ToTable("user_stamps");
@@ -467,9 +466,20 @@ public class ApplicationDbContext : DbContext
             e.HasIndex(x => new { x.UserId, x.CheckpointId }).IsUnique()
              .HasDatabaseName("idx_user_stamps_user_checkpoint");
             e.HasIndex(x => x.UserId).HasDatabaseName("idx_user_stamps_user_id");
+
+            // Profile FK is already declared on the principal side (UserGamificationProfile.Stamps).
+            // Here we explicitly declare Checkpoint FK so EF treats it as a real FK instead
+            // of a dangling Guid.
+            e.HasOne(x => x.Checkpoint)
+             .WithMany()
+             .HasForeignKey(x => x.CheckpointId)
+             .OnDelete(DeleteBehavior.Restrict);
         });
 
         // ── UserBadge ──────────────────────────────────────────
+        // Navigations: Profile (FK to UserGamificationProfile, cascade) +
+        //              Badge (FK to Badge, cascade — when a Badge is deleted, all
+        //              earned entries go with it).
         modelBuilder.Entity<UserBadge>(e =>
         {
             e.ToTable("user_badges");
@@ -482,6 +492,13 @@ public class ApplicationDbContext : DbContext
             e.HasIndex(x => new { x.UserId, x.BadgeId }).IsUnique()
              .HasDatabaseName("idx_user_badges_user_badge");
             e.HasIndex(x => x.UserId).HasDatabaseName("idx_user_badges_user_id");
+
+            // Badge FK: explicitly declared so EF treats it as a real FK instead
+            // of a dangling Guid.
+            e.HasOne(x => x.Badge)
+             .WithMany(b => b.UserBadges)
+             .HasForeignKey(x => x.BadgeId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ── HanoiKnowledge ──────────────────────────────────────

@@ -1,8 +1,8 @@
 namespace Domain.Entities;
 
 /// <summary>
-/// Represents a badge earned by a traveler.
-/// Full implementation will be added in the badges task.
+/// Represents a badge earned by a user (gamification profile ID).
+/// Kept aligned with <see cref="TravelerBadge"/> for backward-compatibility.
 /// </summary>
 public class UserBadge
 {
@@ -10,6 +10,10 @@ public class UserBadge
     public Guid UserId { get; private set; }
     public Guid BadgeId { get; private set; }
     public DateTime EarnedAt { get; private set; }
+
+    // ── Navigation properties ────────────────────────────────────────
+    public virtual Badge? Badge { get; private set; }
+    public virtual UserGamificationProfile? Profile { get; private set; }
 
     // EF Core
     protected UserBadge() { }

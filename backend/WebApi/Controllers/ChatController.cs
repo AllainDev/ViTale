@@ -159,8 +159,9 @@ public class ChatController : BaseController
 
         return Ok(new
         {
-            content = finalContent,
-            tags,
+            message = finalContent,
+            action = tags.Length > 0 ? string.Join(",", tags) : null,
+            audioUrl = (string)null,
             toolCalls = invokedTools,
             sessionId = session.Id
         });

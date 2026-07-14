@@ -7,36 +7,38 @@ public class Traveler
     public Guid Id { get; private set; }
     public string AnonymousId { get; private set; } = string.Empty;
     public Guid? LinkedAccountId { get; private set; }
-    public JsonDocument? Preferences { get; private set; }
+    public string? Preferences { get; private set; }
+    public bool IsAnonymous { get; private set; }
     public DateTime CreatedAt { get; private set; }
 
     // Computed
-    public bool IsAnonymous => LinkedAccountId is null;
-    public bool IsRegistered => LinkedAccountId is not null;
+    public bool IsRegistered => !IsAnonymous;
 
     // EF constructor
     protected Traveler() { }
 
+    /// <summary>Creates an anonymous traveler session.</summary>
     public static Traveler CreateAnonymous(string anonymousId)
     {
         return new Traveler
         {
             Id = Guid.NewGuid(),
             AnonymousId = anonymousId,
-            LinkedAccountId = null,
+            IsAnonymous = true,
             CreatedAt = DateTime.UtcNow,
-            Preferences = JsonDocument.Parse("{\"preferredLanguage\":\"en\",\"notificationsEnabled\":true}")
+            Preferences = "{\"preferredLanguage\":\"en\",\"notificationsEnabled\":true}"
         };
     }
 
-    public void LinkAccount(Guid passportAccountId)
+    /// <summary>Links this traveler to a registered account.</summary>
+    public void LinkAccount(Guid accountId)
     {
-        LinkedAccountId = passportAccountId;
+        LinkedAccountId = accountId;
+        IsAnonymous = false;
     }
 
-    public void UpdatePreferences(JsonDocument preferences)
+    public void UpdatePreferences(string preferences)
     {
         Preferences = preferences;
     }
 }
-

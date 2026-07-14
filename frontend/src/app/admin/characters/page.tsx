@@ -10,7 +10,10 @@ type Character = {
   region: string;
   description?: string;
   modelUrl?: string;
+  productId?: string;
 };
+
+type DollOption = { id: string; name: string; sku?: string; region: string };
 
 export default function AdminCharactersPage() {
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -22,6 +25,14 @@ export default function AdminCharactersPage() {
 
   const [editingCharacter, setEditingCharacter] = useState<Character | Partial<Character> | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string>('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dollOptions, setDollOptions] = useState<DollOption[]>([]);
+  const [loadingDolls, setLoadingDolls] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => { setToastMsg({ text, type }); setTimeout(() => setToastMsg(null), 3000); };
 
   const getHeaders = () => ({
     'Authorization': `Bearer ${localStorage.getItem('vitale_admin_token')}`
@@ -46,23 +57,74 @@ export default function AdminCharactersPage() {
     fetchCharacters();
   }, [page, search]);
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa model này?')) return;
+  const fetchDollOptions = async () => {
+    setLoadingDolls(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/characters/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/products/doll-options`, {
+        headers: getHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDollOptions(data.dolls || []);
+      }
+    } catch { /* non-critical */ }
+    setLoadingDolls(false);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/characters/${deleteConfirmId}`, {
         method: 'DELETE',
         headers: getHeaders()
       });
-      if (res.ok) fetchCharacters();
+      if (res.ok) {
+        showToast('Đã xóa nhân vật', 'success');
+        fetchCharacters();
+      } else {
+        showToast('Có lỗi xảy ra khi xóa', 'error');
+      }
     } catch (e) {
       console.error(e);
+      showToast('Có lỗi xảy ra khi xóa', 'error');
     }
+    setDeleteConfirmId(null);
+  };
+
+  const handleDelete = (id: string) => {
+    setDeleteConfirmId(id);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCharacter) return;
+    setIsSaving(true);
     
+    let finalModelUrl = uploadedUrl || editingCharacter.modelUrl || '';
+    
+    // Upload deferred file first
+    if (selectedFile) {
+      try {
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        
+        const uploadRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admin/upload-character-model`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: formData
+        });
+        
+        if (!uploadRes.ok) throw new Error('Upload failed');
+        const uploadData = await uploadRes.json();
+        finalModelUrl = uploadData.url;
+      } catch (err) {
+        console.error(err);
+        showToast('Có lỗi xảy ra khi upload file 3D.', 'error');
+        setIsSaving(false);
+        return;
+      }
+    }
+
     const isEditing = !!(editingCharacter as Character).id;
     const url = isEditing 
       ? `${process.env.NEXT_PUBLIC_API_URL}/admin/characters/${(editingCharacter as Character).id}`
@@ -72,7 +134,8 @@ export default function AdminCharactersPage() {
       name: editingCharacter.name || '',
       region: editingCharacter.region || 'VN',
       description: editingCharacter.description || '',
-      modelUrl: uploadedUrl || editingCharacter.modelUrl || '',
+      modelUrl: finalModelUrl,
+      productId: editingCharacter.productId || null,
     };
 
     try {
@@ -84,12 +147,17 @@ export default function AdminCharactersPage() {
       if (res.ok) {
         setEditingCharacter(null);
         setUploadedUrl('');
+        setSelectedFile(null);
+        showToast('Lưu nhân vật thành công!', 'success');
         fetchCharacters();
       } else {
-        alert('Có lỗi xảy ra khi lưu.');
+        showToast('Có lỗi xảy ra khi lưu.', 'error');
       }
     } catch (e) {
       console.error(e);
+      showToast('Có lỗi xảy ra khi lưu.', 'error');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -97,6 +165,11 @@ export default function AdminCharactersPage() {
 
   return (
     <div>
+      {toastMsg && (
+        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded shadow-lg z-50 animate-fadeIn ${toastMsg.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'}`}>
+          {toastMsg.text}
+        </div>
+      )}
       {/* Header */}
       <div className="mb-6 flex justify-between items-center">
         <div>
@@ -114,7 +187,7 @@ export default function AdminCharactersPage() {
         <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
           <h3 className="font-semibold text-gray-700">Danh sách Model 3D</h3>
           <button 
-            onClick={() => { setEditingCharacter({}); setUploadedUrl(''); }}
+            onClick={() => { setEditingCharacter({}); setUploadedUrl(''); setSelectedFile(null); fetchDollOptions(); }}
             className="bg-blue-600 text-white px-3 py-1.5 text-sm rounded hover:bg-blue-700 transition-colors flex items-center gap-1 shadow-sm"
           >
             <Plus size={16} /> Thêm mới
@@ -169,7 +242,7 @@ export default function AdminCharactersPage() {
                         )}
                       </td>
                       <td className="p-3 text-right">
-                        <button onClick={() => { setEditingCharacter(c); setUploadedUrl(c.modelUrl || ''); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors mx-1" title="Sửa"><Edit2 size={16} /></button>
+                        <button onClick={() => { setEditingCharacter(c); setUploadedUrl(c.modelUrl || ''); setSelectedFile(null); fetchDollOptions(); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors mx-1" title="Sửa"><Edit2 size={16} /></button>
                         <button onClick={() => handleDelete(c.id)} className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors mx-1" title="Xóa"><Trash2 size={16} /></button>
                       </td>
                     </tr>
@@ -212,6 +285,22 @@ export default function AdminCharactersPage() {
                     <label className="block text-sm font-semibold text-gray-700 mb-1">Khu vực <span className="text-red-500">*</span></label>
                     <input required type="text" value={editingCharacter.region || ''} onChange={e => setEditingCharacter({...editingCharacter, region: e.target.value})} className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none" placeholder="VD: Hà Nội" />
                   </div>
+                  <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">🔗 Liên kết Sản phẩm Búp bê</label>
+                    <select 
+                      value={editingCharacter.productId || ''}
+                      onChange={e => setEditingCharacter({...editingCharacter, productId: e.target.value || undefined})}
+                      className="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none bg-white"
+                    >
+                      <option value="">{loadingDolls ? 'Đang tải...' : '-- Không liên kết --'}</option>
+                      {dollOptions.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.name} ({d.region}){d.sku ? ` — SKU: ${d.sku}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-400 mt-1">Chọn sản phẩm búp bê mà model 3D này đại diện. Sau đó có thể tạo QR Token cho sản phẩm đó.</p>
+                  </div>
                 </div>
 
                 <div>
@@ -222,13 +311,14 @@ export default function AdminCharactersPage() {
                 <div className="bg-gray-50 border border-gray-200 rounded p-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">File 3D Model (.glb / .gltf)</label>
                   <FileDropzone 
-                    uploadUrl="" 
+                    autoUpload={false}
+                    onFileSelect={(f) => setSelectedFile(f)}
+                    uploadUrl="/admin/upload-character-model" 
                     accept={{ 'model/gltf-binary': ['.glb'], 'model/gltf+json': ['.gltf'] }} 
                     maxSizeMB={50} 
                     label="Kéo thả hoặc click để chọn file 3D" 
-                    onSuccess={(url) => setUploadedUrl(url)} 
                   />
-                  {uploadedUrl && (
+                  {uploadedUrl && !selectedFile && (
                     <div className="mt-3 flex items-center gap-3 bg-white border border-gray-200 p-2 rounded">
                       <Box className="text-blue-500 w-8 h-8 p-1" />
                       <div className="text-xs text-blue-600 truncate flex-1 underline"><a href={uploadedUrl} target="_blank">{uploadedUrl}</a></div>
@@ -241,8 +331,37 @@ export default function AdminCharactersPage() {
             
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-2 sticky bottom-0 z-10 rounded-b">
               <button onClick={() => setEditingCharacter(null)} className="px-4 py-1.5 text-sm font-medium border border-gray-300 bg-white rounded hover:bg-gray-50 text-gray-700 transition-colors">Đóng</button>
-              <button form="charForm" type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-sm rounded font-medium transition-colors shadow-sm">
-                Lưu Nhân Vật
+              <button disabled={isSaving} form="charForm" type="submit" className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-1.5 text-sm rounded font-medium transition-colors shadow-sm flex items-center gap-2">
+                {isSaving ? 'Đang lưu...' : 'Lưu Nhân Vật'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirm Delete */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4 backdrop-blur-sm animate-fadeIn">
+          <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 text-center transform transition-all scale-100">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Trash2 className="w-8 h-8 text-red-600" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800 mb-2">Xóa nhân vật 3D</h3>
+            <p className="text-gray-500 mb-6 text-sm">
+              Bạn có chắc chắn muốn xóa nhân vật này? Thao tác này không thể hoàn tác.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button 
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-6 py-2.5 rounded-full font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors flex-1"
+              >
+                Hủy bỏ
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-6 py-2.5 rounded-full font-semibold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-md hover:shadow-lg flex-1"
+              >
+                Xóa ngay
               </button>
             </div>
           </div>

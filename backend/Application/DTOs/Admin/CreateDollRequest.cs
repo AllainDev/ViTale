@@ -7,4 +7,6 @@ public class CreateDollRequest
 
     /// <summary>Region the doll unlocks bonuses for, e.g. "Hà N?i". Required.</summary>
     public string Region { get; set; } = string.Empty;
+    public string? ImageUrl { get; set; }
 }
+
