@@ -9,7 +9,7 @@ const TAG_TOOL_TO_SUGGESTIONS: Record<string, { vi: string[]; en: string[] }> = 
   },
   get_nearby_checkpoints: {
     vi: ['Cách đi đến đó?', 'Có gì hay ở đó?'],
-    en: ['How to get there?', 'What\'s special about it?'],
+    en: ['How to get there?', "What's special about it?"],
   },
   get_checkpoint_details: {
     vi: ['Gần đây có gì hay?', 'Kể thêm về lịch sử?'],
@@ -21,26 +21,14 @@ const TAG_TOOL_TO_SUGGESTIONS: Record<string, { vi: string[]; en: string[] }> = 
   },
 };
 
-const CATEGORY_SUGGESTIONS: Record<string, { vi: string[]; en: string[] }> = {
-  food: { vi: ['Nên ăn vào giờ nào?', 'Có quán nào view đẹp?'], en: ['Best time to eat?', 'Any with nice views?'] },
-  history: { vi: ['Gần đây có gì hay?', 'Cách đi đến đó?'], en: ['What\'s nearby?', 'How to get there?'] },
-  practical_tips: { vi: ['Có tips gì khác?', 'Nên tránh gì?'], en: ['Any other tips?', 'What to avoid?'] },
-};
-
 function generateSuggestions(lastMsg: ChatMessage, lang: 'vi' | 'en'): string[] {
   const suggestions: string[] = [];
-
-  // Tool-based suggestions
   for (const tool of lastMsg.toolCalls ?? []) {
     const s = TAG_TOOL_TO_SUGGESTIONS[tool];
     if (s) suggestions.push(...s[lang]);
   }
-
-  // Always add 1-2 generic fallbacks
   suggestions.push(lang === 'vi' ? 'Kể thêm đi!' : 'Tell me more!');
   suggestions.push(lang === 'vi' ? 'Có chỗ nào khác không?' : 'Any other places?');
-
-  // Dedupe + limit 3
   return [...new Set(suggestions)].slice(0, 3);
 }
 
@@ -49,12 +37,16 @@ export function SuggestionChips({ lastMsg }: { lastMsg: ChatMessage }) {
   const suggestions = generateSuggestions(lastMsg, language);
 
   return (
-    <div className="flex flex-wrap gap-2 mt-2 ml-2">
+    <div className="flex flex-wrap gap-2 mt-3 ml-1">
       {suggestions.map((s, i) => (
         <button
           key={i}
           onClick={() => sendMessage(s)}
-          className="px-3 py-1.5 text-xs bg-stone-100 hover:bg-emerald-50 border border-stone-200 hover:border-emerald-300 rounded-full text-stone-700 transition"
+          className="px-3 py-1.5 text-xs
+                     bg-[var(--color-mai-silk)]/10 hover:bg-[var(--color-mai-silk)]/20
+                     border border-[var(--color-mai-silk)]/30 hover:border-[var(--color-mai-silk)]/60
+                     rounded-full text-[var(--color-mai-bone)]/90
+                     transition-colors"
         >
           {s}
         </button>

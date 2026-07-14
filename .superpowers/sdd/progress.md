@@ -38,3 +38,25 @@ Tasks 20-25: complete (commits ea82dde..f10e011, 7 frontend files, tsc clean)
 Task 26: complete (commits f10e011..2a433f6, Canvas.tsx ChatPanel integration)
 Task 27: complete (commits 2a433f6..a51223a, layout.tsx ChatProvider wrap)
 Task 28: complete (commits a51223a..4f5eda7, 14/14 API tests pass, tool_call_id bug fixed, safety rails strengthened)
+
+---
+
+## Plan: docs/superpowers/plans/2026-07-14-mai-chat-redesign.md (9 tasks)
+
+Branch: main (work directly per user choice — also no per-task commits per user rule)
+Started: 2026-07-14
+
+Task 29: STAGED (no commit yet — globals.css +34 lines, 5 CSS vars + 2 anim + reduced-motion; review clean, 3 Minor nits only)
+Task 30: STAGED (LanguageToggle.tsx + new test, 3 tests pass, review clean, 5 Minor nits; 3 justified deviations: relative jest.mock path, fireEvent instead of userEvent, jest-dom side-effect import)
+Task 31: STAGED (MessageBubble.tsx + test, 6 tests pass after inline fix adding streaming test; review found 3 Important — fixed inline + acknowledged path case as Windows constraint)
+Task 32: STAGED (SuggestionChips.tsx + test, 3 tests pass; review approved with 3 Minor; Windows fs collision overwrote legacy `Chat/SuggestionChips.tsx` — unavoidable, Task 37 deletes it)
+Task 33: STAGED (VoiceInput.tsx + test, 7 tests pass, tsc clean, review approved)
+Task 34: STAGED (PersonaIndicator.tsx + test, 2 tests pass, tsc clean, review approved; 1 Important about Windows folder casing — same as Task 32, documented)
+Task 35: STAGED (GlassChatPanel.tsx + test, 2 tests pass, tsc clean, review approved; minor scrollTo guard added since jsdom doesn't implement scrollTo)
+Task 36: STAGED (AvatarStage.tsx + test, 2 tests pass, tsc clean, full chat suite 25/25 passes; implementer caught brief path error)
+Task 37: STAGED (Canvas.tsx integration + cleanup — DONE_WITH_CONCERNS; Canvas.tsx cleaned, 4 legacy files deleted, all 25 chat tests pass, tsc clean; implementer had to recreate 6 chat components from briefs because previous tasks' working-tree copies were not git-added before cleanup — MessageBubble streaming test re-added inline after recreation)
+Final review: COMPLETE (1 Critical: globals.css was missing from staged set → fixed; 1 Important: forceConsistentCasingInFileNames added to tsconfig.json; 11 Minor noted but non-blocking)
+
+## Plan complete: docs/superpowers/plans/2026-07-14-mai-chat-redesign.md (9 tasks: Tasks 29-37)
+
+Status: All tasks implemented + reviewed + staged (20 files). Awaiting user decision on batch commit.

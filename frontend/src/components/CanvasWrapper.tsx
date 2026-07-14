@@ -3,6 +3,9 @@ import React, { useState } from 'react';
 import Canvas from './Canvas';
 import { ActiveScreen, HeritageNode, HeritageEdge, BrandTheme } from '../types';
 import { INITIAL_NODES, INITIAL_EDGES } from '../data';
+import { useAuth } from '../context/AuthContext';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
 
 const DEFAULT_THEME: BrandTheme = {
   primaryColor: "#0f3a2c",
@@ -21,7 +24,8 @@ export default function CanvasWrapper() {
   const [activeScreen, setActiveScreen] = useState<ActiveScreen>("home");
   const [nodes, setNodes] = useState<HeritageNode[]>(INITIAL_NODES);
   const [edges, setEdges] = useState<HeritageEdge[]>(INITIAL_EDGES);
-  
+  const { setJwt } = useAuth();
+
   // Sync screen state with URL
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -34,12 +38,47 @@ export default function CanvasWrapper() {
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('screen') !== activeScreen) {
-      const newUrl = activeScreen === 'home' 
-          ? window.location.pathname 
-          : `${window.location.pathname}?screen=${activeScreen}`;
+      // Preserve other query params (e.g. ?dev=1) when rewriting the URL.
+      const next = new URLSearchParams(params);
+      if (activeScreen === 'home') {
+        next.delete('screen');
+      } else {
+        next.set('screen', activeScreen);
+      }
+      const queryString = next.toString();
+      const newUrl = window.location.pathname + (queryString ? `?${queryString}` : '');
       window.history.replaceState(null, '', newUrl);
     }
   }, [activeScreen]);
+
+  // Dev bypass: auto-login as the seeded dev user when ?dev=1 is present.
+  // Lets a developer reach the 3D Assistant without scanning a QR code.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('dev') !== '1') return;
+    if (window.localStorage.getItem('vitale_jwt')) return; // already authenticated
+
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'dev@vitale.vn', password: 'DevPass123!' }),
+        });
+        if (!res.ok) {
+          console.error('[dev-bypass] login failed', res.status, await res.text());
+          return;
+        }
+        const data = await res.json();
+        if (data.token) {
+          setJwt(data.token);
+        }
+      } catch (err) {
+        console.error('[dev-bypass] network error', err);
+      }
+    })();
+  }, [setJwt]);
 
   const handleSimulateQrScan = () => {
     console.log("Simulating QR scan...");

@@ -28,9 +28,13 @@ interface AvatarMeshProps {
   animationTag: 'idle' | 'talking';
   onLoaded: (scene: THREE.Object3D) => void;
   onError: (err: Error) => void;
+  lookX?: number;
+  lookY?: number;
+  modelScale?: number;
+  modelPositionY?: number;
 }
 
-function AvatarMesh({ modelUrl, lipsSyncEngine, animationTag, onLoaded, onError }: AvatarMeshProps) {
+function AvatarMesh({ modelUrl, lipsSyncEngine, animationTag, onLoaded, onError, lookX = 0, lookY = 0, modelScale = 2.0, modelPositionY = -1.2 }: AvatarMeshProps) {
   const { scene, animations } = useGLTF(modelUrl, true) as {
     scene: THREE.Object3D;
     animations: THREE.AnimationClip[];
@@ -39,6 +43,7 @@ function AvatarMesh({ modelUrl, lipsSyncEngine, animationTag, onLoaded, onError 
   const idleActionRef = useRef<THREE.AnimationAction | null>(null);
   const talkingActionRef = useRef<THREE.AnimationAction | null>(null);
   const groupRef = useRef<THREE.Group>(null);
+  const headLookRef = useRef({ yaw: 0, pitch: 0 });
   const hasInitialized = useRef(false);
 
   // Compute scale and position ONCE when loaded to avoid jitter on re-renders
@@ -109,7 +114,7 @@ function AvatarMesh({ modelUrl, lipsSyncEngine, animationTag, onLoaded, onError 
   }, [animationTag]);
 
   // Update animation mixer and lips-sync every frame
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     try {
       mixerRef.current?.update(delta);
     } catch (e) {
@@ -117,16 +122,32 @@ function AvatarMesh({ modelUrl, lipsSyncEngine, animationTag, onLoaded, onError 
       console.warn('[AvatarMesh] Animation mixer update failed:', e);
       mixerRef.current = null;
     }
+
+    // Subtle head follow + random idle rotation
+    if (groupRef.current) {
+      const t = state.clock.elapsedTime;
+      // Target: mouse-driven (~±15° yaw, ±8° pitch) + subtle noise
+      const targetYaw = lookX * 0.25 + Math.sin(t * 0.6) * 0.015 + Math.cos(t * 0.31) * 0.01;
+      const targetPitch = -lookY * 0.13 + Math.sin(t * 0.83) * 0.008;
+
+      // Lerp current toward target for smooth feel (damping)
+      const damping = Math.min(delta * 4, 1);
+      headLookRef.current.yaw += (targetYaw - headLookRef.current.yaw) * damping;
+      headLookRef.current.pitch += (targetPitch - headLookRef.current.pitch) * damping;
+
+      groupRef.current.rotation.y = headLookRef.current.yaw;
+      groupRef.current.rotation.x = headLookRef.current.pitch;
+    }
   });
 
   if (!scene) return null;
 
   return (
-    <group ref={groupRef} position={[0, -1.2, 0]}>
-      {/* 
+    <group ref={groupRef} position={[0, modelPositionY, 0]}>
+      {/*
         Adjusted scale to look good on the full height canvas without being terrifyingly huge.
       */}
-      <primitive object={scene} scale={2.0} />
+      <primitive object={scene} scale={modelScale} />
     </group>
   );
 }
@@ -154,6 +175,11 @@ interface AvatarRendererProps {
   onAvatarLoaded?: (scene: THREE.Object3D) => void;
   isPaused?: boolean;
   modelUrl?: string;
+  lookX?: number;
+  lookY?: number;
+  modelScale?: number;
+  modelPositionY?: number;
+  cameraDistance?: number;
 }
 
 export default function AvatarRenderer({
@@ -161,7 +187,12 @@ export default function AvatarRenderer({
   animationTag,
   onAvatarLoaded,
   isPaused = false,
-  modelUrl
+  modelUrl,
+  lookX = 0,
+  lookY = 0,
+  modelScale = 2.0,
+  modelPositionY = -1.2,
+  cameraDistance = 3
 }: AvatarRendererProps) {
   const [modelError, setModelError] = useState<string | null>(null);
   const [webglSupported, setWebglSupported] = useState(true);
@@ -215,7 +246,7 @@ export default function AvatarRenderer({
 
       <Canvas
         key={retryKey}
-        camera={{ position: [0, 0, 3], fov: 50, near: 0.1, far: 100 }}
+        camera={{ position: [0, 0, cameraDistance], fov: 50, near: 0.1, far: 100 }}
         frameloop={isPaused ? 'never' : 'always'}
         style={{ width: '100%', height: '100%' }}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
@@ -251,6 +282,10 @@ export default function AvatarRenderer({
               animationTag={animationTag}
               onLoaded={handleModelLoaded}
               onError={handleModelError}
+              lookX={lookX}
+              lookY={lookY}
+              modelScale={modelScale}
+              modelPositionY={modelPositionY}
             />
           </React.Suspense>
         </ErrorBoundary>

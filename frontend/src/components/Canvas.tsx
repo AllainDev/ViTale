@@ -1,36 +1,26 @@
 'use client';
 import React, { useState, useEffect, useRef } from "react";
-import { ActiveScreen, ViewMode, HeritageNode, HeritageEdge, ChatMessage } from "../types";
+import { ActiveScreen, ViewMode, HeritageNode, HeritageEdge } from "../types";
 import { ALL_PRODUCTS } from "../data";
 import { useLanguage } from "../context/LanguageContext";
 import { getTranslation } from "../lib/i18n";
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { chatApi, gamificationApi } from "../lib/api";
+import { gamificationApi } from "../lib/api";
 import PassportView from './PassportView';
 
-const AvatarRenderer = dynamic(() => import('../components/AvatarRenderer'), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center">
-      <div className="w-8 h-8 rounded-full border-4 border-amber-200 border-t-amber-800 animate-spin"></div>
-    </div>
-  )
-});
-
-import { 
-  Mail, 
-  Phone, 
-  MapPin, 
-  ArrowRight, 
-  QrCode, 
-  Send, 
-  User, 
-  CheckCircle, 
-  Lock, 
-  Star,   
-  Coffee, 
-  Bot, 
+import {
+  Mail,
+  Phone,
+  MapPin,
+  ArrowRight,
+  QrCode,
+  Send,
+  User,
+  CheckCircle,
+  Lock,
+  Star,
+  Coffee,
+  Bot,
   Sparkles,
   LogOut,
   Layers,
@@ -45,7 +35,8 @@ import QRScanner from "./QRScanner";
 import { useAuth } from "../context/AuthContext";
 import GoogleLoginButton from "./auth/GoogleLoginButton";
 import FacebookLoginButton from "./auth/FacebookLoginButton";
-import { ChatPanel } from "./Chat/ChatPanel";
+import { AvatarStage } from "./Chat/AvatarStage";
+import { GlassChatPanel } from "./Chat/GlassChatPanel";
 
 const translateAuthError = (err: string, lang: string) => {
   if (lang !== 'vi' || !err) return err;
@@ -328,25 +319,11 @@ export default function Canvas({
   const { language: currentLanguage, setLanguage: setCurrentLanguage } = useLanguage();
   
   // 3D Assistant State
-  const [sessionId, setSessionId] = useState<string | undefined>();
-  const [lang, setLang] = useState<'vi-VN' | 'en-US'>(currentLanguage === 'vi' ? 'vi-VN' : 'en-US');
   const [animTag, setAnimTag] = useState<'idle' | 'talking'>('idle');
   const [avatarLoaded, setAvatarLoaded] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Local state for chat message list
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([
-    {
-      id: "1",
-      role: "assistant",
-      text: "Xin chào quý khách! Mai rất hân hạnh được chào mừng bạn đến với VITALE. Hiện tại bạn đang dừng chân gần hồ Hoàn Kiếm linh thiêng phải không ạ? Mai có thể chia sẻ câu chuyện gì để sưởi ấm hành trình di sản của bạn hôm nay thế?",
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }
-  ]);
-  const [chatInput, setChatInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
   const [chatBlocked, setChatBlocked] = useState(false);
-  const chatBottomRef = useRef<HTMLDivElement>(null);
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -377,84 +354,12 @@ export default function Canvas({
     }
   }, [activeScreen, user, currentLanguage]);
 
-  useEffect(() => {
-    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, isTyping]);
-
-  useEffect(() => {
-    setLang(currentLanguage === 'vi' ? 'vi-VN' : 'en-US');
-  }, [currentLanguage]);
-
-  const playAudio = (url: string) => {
-    audioRef.current?.pause();
-    const audio = new Audio(url);
-    audioRef.current = audio;
-    setAnimTag('talking');
-    audio.play().catch(() => {});
-    audio.onended = () => setAnimTag('idle');
-    audio.onerror = () => setAnimTag('idle');
-  };
-
   // Scroll to top whenever the active screen changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeScreen]);
 
-  // Handle Mai Chat sending
-  const handleSendChatMessage = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!chatInput.trim()) return;
-
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      text: chatInput,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setChatHistory(prev => [...prev, userMsg]);
-    const promptToSend = chatInput;
-    setChatInput("");
-    setIsTyping(true);
-
-    try {
-      const res = await chatApi.sendMessage(promptToSend, sessionId, lang);
-      
-      if (res.sessionId) setSessionId(res.sessionId);
-      
-      const assistantMsg: ChatMessage = {
-        id: Date.now().toString() + "-ai",
-        role: "assistant",
-        text: res.message,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        audioUrl: res.audioUrl ?? undefined
-      };
-
-      setChatHistory(prev => [...prev, assistantMsg]);
-      
-      if (res.audioUrl) {
-        playAudio(res.audioUrl);
-      }
-    } catch (error) {
-      console.error("Chat error:", error);
-      setChatHistory(prev => [...prev, {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        text: currentLanguage === "vi" ? "Xin lỗi, kết nối đang gián đoạn." : "Sorry, connection is disrupted.",
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }]);
-    } finally {
-      setIsTyping(false);
-    }
-  };
-
-  // Quick Chat Suggestion Trigger
-  const triggerSuggestion = (text: string) => {
-    setChatInput(text);
-    setTimeout(() => {
-      handleSendChatMessage();
-    }, 100);
-  };
+  // Chat state moved to ChatContext; Canvas only handles blocking + avatar animation.
 
   // Handle Product activation (Simulate QR/Tag scan)
   const handleActivatePassport = (nodeId: string, itemName: string) => {
@@ -1087,33 +992,13 @@ export default function Canvas({
             </div>
           )}
           {activeScreen === "assistant" && user && !chatBlocked && (
-            <div className="w-full h-[75vh] min-h-[600px] max-h-[900px] relative overflow-hidden animate-fadeIn flex flex-col md:flex-row" style={{ background: `linear-gradient(135deg, ${brandTheme.primaryColor} 0%, #1c2a1e 100%)` }}>
+            <div className="relative w-full h-[calc(100vh-80px)] min-h-[640px] overflow-hidden animate-fadeIn">
 
-              {/* Top Status Bar */}
-              <div className="absolute top-0 left-0 z-20 p-6 pointer-events-none">
-                <div className="bg-black/30 backdrop-blur-xl border border-white/20 text-white px-4 py-2 rounded-full text-xs font-bold flex items-center gap-2 shadow-xl">
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Nàng Mai · AI Heritage Guide</span>
-                </div>
-              </div>
+              <GlassChatPanel />
 
-              {/* Left Side: 3D Avatar */}
-              <div className="md:w-1/2 h-1/2 md:h-full relative z-0">
-                <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(ellipse at 50% 100%, #a8e0b0 0%, transparent 70%)' }} />
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/20 z-10 pointer-events-none hidden md:block" />
-                <div className="absolute inset-0 z-0 w-full h-full">
-                  <AvatarRenderer
-                    lipsSyncEngine={null}
-                    animationTag={animTag}
-                    onAvatarLoaded={() => setAvatarLoaded(true)}
-                  />
-                </div>
-              </div>
+              {/* Companion avatar — small, bottom-right above input bar */}
+              <AvatarStage animTag={animTag} onAvatarLoaded={() => setAvatarLoaded(true)} />
 
-              {/* Right Side: New ChatPanel */}
-              <div className="md:w-1/2 h-1/2 md:h-full border-l border-stone-200 bg-white">
-                <ChatPanel />
-              </div>
             </div>
           )}
 

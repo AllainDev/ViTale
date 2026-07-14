@@ -6,6 +6,13 @@
 @theme {
   --font-serif: "Noto Serif", var(--font-playfair), serif;
   --font-sans: var(--font-inter), sans-serif;
+
+  /* Mai chat redesign — "Đêm Hà Nội" palette */
+  --color-mai-night: #0E0E27;
+  --color-mai-silk: #D75F4E;
+  --color-mai-lotus: #E8C4C4;
+  --color-mai-leaf: #4A6B5D;
+  --color-mai-bone: #F5EFE0;
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -36,6 +43,57 @@
 .spinner { width:2rem; height:2rem; border:2px solid #e5e7eb; border-top-color:#0f3a2c; border-radius:50%; animation:spin 0.8s linear infinite; }
 .sync-dot.pulse { animation: pulse-dot 1.5s ease-in-out infinite; }
 .stamp-entrance { animation: stamp-pop 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Mai chat redesign — silk ribbon pulse + slide-up */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 16px rgba(215, 95, 78, 0.2); }
+  50%      { box-shadow: 0 0 32px rgba(215, 95, 78, 0.5); }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+.animate-slide-up   { animation: slide-up 200ms ease-out; }
+
+/* Tailwind 4 utility shim — radial gradient */
+.bg-gradient-radial {
+  background-image: radial-gradient(ellipse at center, var(--tw-gradient-stops));
+}
+
+/* Reduced motion — disable animations for users who request it */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-glow,
+  .animate-slide-up,
+  .animate-pulse,
+  .animate-fadeIn {
+    animation: none !important;
+  }
+}
+
+/* AnimatedBackground blob keyframes (global for App Router compat) */
+@keyframes mai-blob-drift-a {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, -40px) scale(1.1); }
+  100% { transform: translate(-30px, 50px) scale(0.95); }
+}
+@keyframes mai-blob-drift-b {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-50px, 60px) scale(0.9); }
+  100% { transform: translate(40px, -30px) scale(1.05); }
+}
+.mai-blob-a {
+  animation: mai-blob-drift-a 18s ease-in-out infinite alternate;
+}
+.mai-blob-b {
+  animation: mai-blob-drift-b 22s ease-in-out infinite alternate;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mai-blob-a,
+  .mai-blob-b {
+    animation: none !important;
+  }
+}
 
 
 /* Texture background for Canvas content area */
