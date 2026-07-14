@@ -87,6 +87,13 @@ try
     builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
     builder.Services.AddScoped<ITranslationRepository, TranslationRepository>();
 
+    // ── Chat Provider Chain (with multi-provider failover) ──
+    builder.Services.AddSingleton<IChatProvider>(sp =>
+        new ChatProviderChainBuilder(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            sp.GetRequiredService<ILoggerFactory>()
+        ).Build());
+
     // ── External Services (Scoped) ──────────────────────────────────────────
     builder.Services.AddScoped<IAiChatService, GroqChatService>();
     builder.Services.AddScoped<ITextToSpeechService, AzureTtsService>();
