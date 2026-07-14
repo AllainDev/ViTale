@@ -250,7 +250,7 @@ public static class DatabaseSeeder
                     radius = EXCLUDED.radius,
                     region = EXCLUDED.region
                 """,
-                id, name, lat, lon, radius, (object)storyId!, regionName);
+                id, name, lat, lon, radius, (object?)storyId, regionName);
         }
 
         // ── Hồ Chí Minh City checkpoints ─────────────────────────────────────
@@ -437,7 +437,7 @@ public static class DatabaseSeeder
                 VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, false, {10})
                 ON CONFLICT (id) DO NOTHING
                 """,
-                id, name, region, type, (object)sku!, img, desc, material, price, highlight, DateTime.UtcNow);
+                id, name, region, type, (object?)sku, img, desc, material, price, highlight, DateTime.UtcNow);
         }
     }
 }
