@@ -36,6 +36,7 @@ COPY --from=build /app/publish .
 
 EXPOSE 5000
 ENV ASPNETCORE_URLS=http://+:5000
+ENV DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE=false
 
 # Entry point: run migrations first, then start the web server
 # The migration tool binary is embedded via the publish output for simplicity.
