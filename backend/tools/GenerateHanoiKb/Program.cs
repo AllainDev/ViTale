@@ -27,7 +27,7 @@ static async Task<int> MainAsync(string[] args)
         .UseNpgsql(connectionString)
         .Options;
 
-    var http = new HttpClient { BaseAddress = new Uri("https://api.groq.com/") };
+    var http = new HttpClient { BaseAddress = new Uri("https://api.groq.com/openai/") };
     http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
     http.Timeout = TimeSpan.FromSeconds(30);
 

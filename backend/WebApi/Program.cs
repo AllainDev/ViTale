@@ -107,7 +107,7 @@ try
     // ── HTTP Clients ────────────────────────────────────────────────────────
     builder.Services.AddHttpClient("Groq", c =>
     {
-        c.BaseAddress = new Uri("https://api.groq.com/");
+        c.BaseAddress = new Uri("https://api.groq.com/openai/");
         c.Timeout = TimeSpan.FromSeconds(20);
     });
 
@@ -216,7 +216,7 @@ try
         Log.Information("Running EF Core migrations...");
         await db.Database.MigrateAsync();
         Log.Information("Migrations complete. Running seed data...");
-        await DatabaseSeeder.SeedAsync(db);
+        await DatabaseSeeder.SeedAsync(db, app.Environment.IsDevelopment());
         Log.Information("Seed complete.");
     }
 
