@@ -1,6 +1,12 @@
 'use client';
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ChatMessage, Language } from '@/types/chat';
+import {
+  listSessions,
+  saveSession as persistSession,
+  deleteSession as removeSession,
+  type StoredSession,
+} from '@/components/Chat/chatHistory';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api/v1';
 const STORAGE_LANG = 'vitale_chat_lang';
@@ -16,6 +22,12 @@ interface ChatContextValue {
   sessionId: string | null;
   sendMessage: (text: string) => Promise<void>;
   clearChat: () => void;
+  /** Local list of past sessions (newest first). */
+  sessions: StoredSession[];
+  refreshSessions: () => void;
+  loadSession: (id: string) => boolean;
+  removeSessionById: (id: string) => void;
+  startNewChat: () => void;
 }
 
 const ChatContext = createContext<ChatContextValue>({
@@ -28,6 +40,11 @@ const ChatContext = createContext<ChatContextValue>({
   sessionId: null,
   sendMessage: async () => {},
   clearChat: () => {},
+  sessions: [],
+  refreshSessions: () => {},
+  loadSession: () => false,
+  removeSessionById: () => {},
+  startNewChat: () => {},
 });
 
 export function ChatProvider({ children }: { children: React.ReactNode }) {
@@ -36,6 +53,11 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [sessions, setSessions] = useState<StoredSession[]>([]);
+
+  const refreshSessions = useCallback(() => {
+    setSessions(listSessions());
+  }, []);
 
   // Load persisted language + session on mount
   useEffect(() => {
@@ -47,7 +69,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       setSessionId(savedSession);
       hydrateSession(savedSession);
     }
-  }, []);
+
+    refreshSessions();
+  }, [refreshSessions]);
+
+  // Auto-save current session to local history whenever messages change
+  useEffect(() => {
+    if (!sessionId || messages.length === 0) return;
+    persistSession(sessionId, messages);
+    refreshSessions();
+  }, [messages, sessionId, refreshSessions]);
 
   // Hydrate session messages from backend
   const hydrateSession = useCallback(async (sid: string) => {
@@ -158,10 +189,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem(STORAGE_SESSION);
   }, []);
 
+  /** Load a session by id from local history; returns true if found. */
+  const loadSession = useCallback((id: string): boolean => {
+    const stored = listSessions().find((s) => s.id === id);
+    if (!stored) return false;
+    setMessages(stored.messages);
+    setSessionId(stored.id);
+    localStorage.setItem(STORAGE_SESSION, stored.id);
+    return true;
+  }, []);
+
+  /** Delete a session from local history (does not affect current messages). */
+  const removeSessionById = useCallback((id: string) => {
+    removeSession(id);
+    refreshSessions();
+  }, [refreshSessions]);
+
+  /** Start a brand-new chat — clears messages + session. */
+  const startNewChat = useCallback(() => {
+    setMessages([]);
+    setSessionId(null);
+    localStorage.removeItem(STORAGE_SESSION);
+  }, []);
+
   return (
     <ChatContext.Provider value={{
       language, setLanguage, gps, requestGps,
       messages, isStreaming, sessionId, sendMessage, clearChat,
+      sessions, refreshSessions, loadSession, removeSessionById, startNewChat,
     }}>
       {children}
     </ChatContext.Provider>

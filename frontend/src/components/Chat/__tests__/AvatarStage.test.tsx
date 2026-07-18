@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 jest.mock('../../../components/AvatarRenderer', () => ({
@@ -19,13 +19,24 @@ jest.mock('../../../context/ChatContext', () => ({
 import { AvatarStage } from '../AvatarStage';
 
 describe('AvatarStage', () => {
-  it('renders the stage container', () => {
+  it('renders the stage container in default (inline) mode', () => {
     const { container } = render(<AvatarStage animTag="idle" onAvatarLoaded={() => {}} />);
-    expect(container.querySelector('.absolute.inset-0')).toBeInTheDocument();
+    const stage = container.querySelector('[data-testid="avatar-stage"]');
+    expect(stage).toBeInTheDocument();
+    expect(stage?.className).toMatch(/relative/);
   });
 
-  it('renders the persona indicator overlay', () => {
-    render(<AvatarStage animTag="idle" onAvatarLoaded={() => {}} />);
-    expect(screen.getByText(/Trợ lý Di sản/i)).toBeInTheDocument();
+  it('renders fullscreen position with absolute inset-0', () => {
+    const { container } = render(<AvatarStage position="fullscreen" />);
+    const stage = container.querySelector('[data-testid="avatar-stage"]');
+    expect(stage?.className).toMatch(/absolute/);
+    expect(stage?.className).toMatch(/inset-0/);
+  });
+
+  it('renders floating position with fixed bottom-right', () => {
+    const { container } = render(<AvatarStage position="floating" />);
+    const stage = container.querySelector('[data-testid="avatar-stage"]');
+    expect(stage?.className).toMatch(/fixed/);
+    expect(stage?.className).toMatch(/right-2/);
   });
 });

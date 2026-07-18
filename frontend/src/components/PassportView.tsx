@@ -10,8 +10,10 @@ import { useGeolocation } from '../lib/geolocation';
 import CheckinResultModal from './CheckinResultModal';
 import { useLanguage } from '../context/LanguageContext';
 import { getTranslation } from '../lib/i18n';
-import { MapPin, Compass, Award, Book, BookOpen, Map, ExternalLink, X } from 'lucide-react';
+import { MapPin, Compass, Award, Book, BookOpen, Map, ExternalLink, X, Globe2 } from 'lucide-react';
 import AchievementsView from './AchievementsView';
+import VietnamMap from './VietnamMap';
+import RegionPanel from './RegionPanel';
 
 // ── Region display mapping ──────────────────────────────────────────────────
 function getRegionDisplay(region: string, language: string): string {
@@ -97,15 +99,27 @@ function MapModal({ checkpoint, language, onClose }: MapModalProps) {
           <p className="text-xs text-stone-500 font-mono">
             {latitude.toFixed(5)}, {longitude.toFixed(5)}
           </p>
-          <a
-            href={googleMapsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            {language === 'vi' ? 'Mở Google Maps' : 'Open Google Maps'}
-          </a>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent('map-modal-checkin', { detail: checkpoint.id }));
+                onClose();
+              }}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              {language === 'vi' ? 'Check-in GPS' : 'GPS Check-in'}
+            </button>
+            <a
+              href={googleMapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 text-sm font-bold rounded-xl transition-colors shadow-sm"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Google Maps
+            </a>
+          </div>
         </div>
       </div>
     </div>,
@@ -133,6 +147,20 @@ export default function PassportView() {
   const [mapCheckpoint, setMapCheckpoint] = useState<GamificationCheckpoint | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  // Map-specific state
+  const [selectedProvinceId, setSelectedProvinceId] = useState<string | null>(null);
+  const [regionPanelProvince, setRegionPanelProvince] = useState<any>(null);
+  const [regionPanelCheckpoints, setRegionPanelCheckpoints] = useState<GamificationCheckpoint[]>([]);
+
+  useEffect(() => {
+    const handleCheckinEvent = (e: Event) => {
+      const id = (e as CustomEvent).detail;
+      if (id) handleCheckin(id);
+    };
+    window.addEventListener('map-modal-checkin', handleCheckinEvent);
+    return () => window.removeEventListener('map-modal-checkin', handleCheckinEvent);
+  }, []);
+
   const geo = useGeolocation();
 
   const fetchData = useCallback(async () => {
@@ -152,7 +180,12 @@ export default function PassportView() {
       setFetchError(null);
     } catch (err: any) {
       console.error('Failed to load gamification data:', err);
-      setFetchError(err.message || dict.passportView?.connectionError || "Connection Error");
+      // 401 = user chưa đăng ký/login đầy đủ → không crash, set trạng thái riêng
+      if (err.status === 401 || err.status === 403) {
+        setFetchError('UNAUTHORIZED');
+      } else {
+        setFetchError(err.message || dict.passportView?.connectionError || "Connection Error");
+      }
     } finally {
       setLoading(false);
     }
@@ -255,22 +288,44 @@ export default function PassportView() {
     }
   };
 
-  if (loading) return <div className="p-8 text-center text-stone-500 font-medium">{dict.passportView?.loading || "Loading passport data..."}</div>;
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '48px 16px', color: '#6b5a40' }}>
+      <div style={{ width: 32, height: 32, border: '2.5px solid #c9a76d', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ fontFamily: 'Noto Serif, serif', fontSize: 14 }}>{dict.passportView?.loading || "Đang tải hộ chiếu..."}</p>
+    </div>
+  );
+
+  if (fetchError === 'UNAUTHORIZED') {
+    return (
+      <div style={{ textAlign: 'center', padding: '48px 16px', maxWidth: 360, margin: '0 auto' }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(201,167,109,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c9a76d" strokeWidth="2"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/></svg>
+        </div>
+        <h3 style={{ fontFamily: 'Noto Serif, serif', fontSize: 18, fontWeight: 800, color: '#0f3a2c', marginBottom: 8 }}>
+          {language === 'vi' ? 'Cần đăng nhập đầy đủ' : 'Full login required'}
+        </h3>
+        <p style={{ fontSize: 13, color: '#8a7a60', lineHeight: 1.6, marginBottom: 20 }}>
+          {language === 'vi'
+            ? 'Tính năng Hộ chiếu yêu cầu tài khoản đã được xác thực. Vui lòng đăng nhập bằng Google hoặc Facebook để mở khoá.'
+            : 'The Passport feature requires a verified account. Please sign in with Google or Facebook to unlock.'}
+        </p>
+      </div>
+    );
+  }
 
   if (fetchError) {
     return (
-      <div className="p-8 text-center text-rose-500 bg-rose-50 rounded-2xl mx-auto max-w-md my-8 shadow-sm border border-rose-100">
-        <p className="mb-4 text-lg font-semibold flex items-center justify-center gap-2">
-          <span>⚠️</span> {fetchError}
-        </p>
+      <div style={{ textAlign: 'center', padding: '32px 16px', maxWidth: 360, margin: '0 auto' }}>
+        <p style={{ color: '#c0392b', marginBottom: 16, fontSize: 14 }}>⚠️ {fetchError}</p>
         <button
-          className="px-6 py-2.5 bg-rose-500 text-white font-medium rounded-full hover:bg-rose-600 transition-colors shadow-md"
+          style={{ padding: '10px 24px', background: '#0f3a2c', color: 'white', border: 'none', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
           onClick={fetchData}
         >
-          {dict.passportView?.retry || "Retry"}
+          {dict.passportView?.retry || "Thử lại"}
         </button>
       </div>
     );
+
   }
 
   if (!status) return <div className="p-8 text-center text-stone-500 font-medium">{dict.passportView?.noData || "No data available."}</div>;
@@ -298,110 +353,72 @@ export default function PassportView() {
       </div>
 
       {/* TAB NAVIGATION */}
-      <div className="flex justify-center mb-8">
+      <div className="flex justify-center mb-6">
         <div className="bg-stone-100 p-1.5 rounded-full flex gap-1 shadow-inner border border-stone-200/50">
           <button
             onClick={() => setActiveTab('passport')}
-            className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
               activeTab === 'passport'
-                ? 'bg-white text-emerald-700 shadow-sm'
+                ? 'bg-white shadow-sm'
                 : 'text-stone-500 hover:text-stone-700'
             }`}
+            style={activeTab === 'passport' ? { color: '#0f3a2c' } : {}}
           >
-            <Book className="w-4 h-4" />
+            <Globe2 className="w-4 h-4" />
             {language === 'vi' ? 'Hộ chiếu' : 'Passport'}
           </button>
           <button
             onClick={() => setActiveTab('achievements')}
-            className={`px-5 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
+            className={`px-4 py-2.5 rounded-full text-sm font-bold transition-all flex items-center gap-2 ${
               activeTab === 'achievements'
                 ? 'bg-white text-amber-600 shadow-sm'
                 : 'text-stone-500 hover:text-stone-700'
             }`}
           >
             <Award className="w-4 h-4" />
-            {dict.passportView?.achievementsTab || (language === 'vi' ? "Thành tựu" : "Achievements")}
+            {dict.passportView?.achievementsTab || (language === 'vi' ? 'Thành tựu' : 'Achievements')}
           </button>
         </div>
       </div>
 
-      {activeTab === 'passport' ? (
-        <>
-          {/* REGION TABS */}
-          <div className="mb-8">
-            <div className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide px-1">
-              {regions.map(r => {
-                const display = getRegionDisplay(r, language);
-                // Check doll ownership per region
-                const regionDollOwned = checkpoints
-                  .filter(c => c.region === r)
-                  .some(c => c.regionDollOwned);
-                const isActive = activeRegion === r;
-
-                return (
-                  <div key={r} className="relative group snap-center shrink-0">
-                    <button
-                      onClick={() => setActiveRegion(r)}
-                      className={`px-5 py-3 rounded-2xl text-sm font-bold whitespace-nowrap transition-all duration-300 flex items-center gap-2 ${
-                        isActive
-                          ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-xl shadow-emerald-500/30 scale-105 border-0'
-                          : 'bg-white text-stone-600 hover:bg-stone-50 border border-stone-200 shadow-sm hover:shadow-md hover:-translate-y-0.5'
-                      }`}
-                    >
-                      <Compass className={`w-4 h-4 ${isActive ? 'text-emerald-100' : 'text-stone-400'}`} />
-                      {display}
-                      {/* Doll ownership indicator */}
-                      {regionDollOwned && (
-                        <span className="text-base leading-none" title={language === 'vi' ? 'Bạn sở hữu búp bê khu vực này' : 'You own a doll from this region'}>
-                          ✨
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Doll ownership tooltip — shows on hover */}
-                    {regionDollOwned && (
-                      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 pointer-events-none z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="bg-stone-900 text-white text-xs font-medium px-3 py-1.5 rounded-lg whitespace-nowrap shadow-xl">
-                          {language === 'vi'
-                            ? '✨ Bạn sở hữu búp bê khu vực này'
-                            : '✨ You own a doll from this region'}
-                          {/* Arrow */}
-                          <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-stone-900" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+      {/* ══ TAB: HỘ CHIẾU (MAP) ══ */}
+      {activeTab === 'passport' && (
+        <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+          {/* Map container */}
+          <div className="passport-map-container">
+            <VietnamMap
+              checkpoints={checkpoints}
+              selectedProvinceId={selectedProvinceId}
+              onProvinceClick={(province, cps) => {
+                setSelectedProvinceId(province.id);
+                setRegionPanelProvince(province);
+                setRegionPanelCheckpoints(cps.map(c => ({
+                  ...c,
+                  isVisited: c.isVisited || !!status?.stamps.some((s: any) => s.checkpointId === c.id)
+                })));
+              }}
+              primaryColor="#0f3a2c"
+              secondaryColor="#c9a76d"
+            />
           </div>
+        </div>
+      )}
 
-          {/* CHECKPOINT GRID */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {activeCheckpoints.map(cp => (
-              <CheckpointCard
-                key={cp.id}
-                checkpoint={cp}
-                geoLoading={geo.loading && activeCheckpointId === cp.id}
-                geoError={activeCheckpointId === cp.id ? geo.error : null}
-                checkinLoading={checkinLoading && activeCheckpointId === cp.id}
-                isAnyLoading={checkinLoading || geo.loading}
-                onCheckin={() => handleCheckin(cp.id)}
-                onReadStory={() => {
-                  const displayName = language === 'en' && cp.name === 'Nhà của bạn' ? 'Your Home'
-                    : language === 'en' && cp.name === 'Trường học' ? 'School'
-                    : cp.name;
-                  setStoryPopup({ name: displayName, contentUrl: cp.storyAssetUrl || null });
-                }}
-                onShowMap={() => setMapCheckpoint(cp)}
-                dict={dict}
-                language={language}
-              />
-            ))}
-          </div>
-        </>
-      ) : (
+      {/* ══ TAB: THÀNH TỰU ══ */}
+      {activeTab === 'achievements' && (
         <AchievementsView status={status} dict={dict} />
+      )}
+
+      {/* REGION PANEL — slide-in trên mobile khi bấm vào tỉnh trên bản đồ */}
+      {activeTab === 'passport' && mounted && (
+        <RegionPanel
+          province={regionPanelProvince}
+          checkpoints={regionPanelCheckpoints}
+          onClose={() => { setRegionPanelProvince(null); setSelectedProvinceId(null); }}
+          onItemClick={(cp) => setMapCheckpoint(cp)}
+          primaryColor="#0f3a2c"
+          secondaryColor="#c9a76d"
+        />
       )}
 
       {/* CHECK-IN RESULT MODAL */}

@@ -1,0 +1,442 @@
+{
+  "description": "34 tỉnh/thành phố Việt Nam sau sáp nhập (theo phương án bản đồ 34 tỉnh)",
+  "provinces": [
+    {
+      "id": "TQ",
+      "name": "Tuyên Quang",
+      "nameEn": "Tuyen Quang",
+      "type": "province",
+      "region": "north",
+      "cx": 215,
+      "cy": 110,
+      "merged": [
+        "Hà Giang",
+        "Tuyên Quang"
+      ]
+    },
+    {
+      "id": "CB",
+      "name": "Cao Bằng",
+      "nameEn": "Cao Bang",
+      "type": "province",
+      "region": "north",
+      "cx": 245,
+      "cy": 90,
+      "merged": [
+        "Cao Bằng"
+      ]
+    },
+    {
+      "id": "LC",
+      "name": "Lai Châu",
+      "nameEn": "Lai Chau",
+      "type": "province",
+      "region": "north",
+      "cx": 165,
+      "cy": 115,
+      "merged": [
+        "Lai Châu"
+      ]
+    },
+    {
+      "id": "LCAI",
+      "name": "Lào Cai",
+      "nameEn": "Lao Cai",
+      "type": "province",
+      "region": "north",
+      "cx": 195,
+      "cy": 115,
+      "merged": [
+        "Lào Cai",
+        "Yên Bái"
+      ]
+    },
+    {
+      "id": "TN",
+      "name": "Thái Nguyên",
+      "nameEn": "Thai Nguyen",
+      "type": "province",
+      "region": "north",
+      "cx": 240,
+      "cy": 125,
+      "merged": [
+        "Bắc Kạn",
+        "Thái Nguyên"
+      ]
+    },
+    {
+      "id": "DB",
+      "name": "Điện Biên",
+      "nameEn": "Dien Bien",
+      "type": "province",
+      "region": "north",
+      "cx": 155,
+      "cy": 150,
+      "merged": [
+        "Điện Biên"
+      ]
+    },
+    {
+      "id": "LS",
+      "name": "Lạng Sơn",
+      "nameEn": "Lang Son",
+      "type": "province",
+      "region": "north",
+      "cx": 255,
+      "cy": 125,
+      "merged": [
+        "Lạng Sơn"
+      ]
+    },
+    {
+      "id": "SL",
+      "name": "Sơn La",
+      "nameEn": "Son La",
+      "type": "province",
+      "region": "north",
+      "cx": 180,
+      "cy": 170,
+      "merged": [
+        "Sơn La"
+      ]
+    },
+    {
+      "id": "PT",
+      "name": "Phú Thọ",
+      "nameEn": "Phu Tho",
+      "type": "province",
+      "region": "north",
+      "cx": 220,
+      "cy": 150,
+      "merged": [
+        "Phú Thọ",
+        "Vĩnh Phúc",
+        "Hòa Bình"
+      ]
+    },
+    {
+      "id": "BN",
+      "name": "Bắc Ninh",
+      "nameEn": "Bac Ninh",
+      "type": "province",
+      "region": "north",
+      "cx": 250,
+      "cy": 150,
+      "merged": [
+        "Bắc Giang",
+        "Bắc Ninh"
+      ]
+    },
+    {
+      "id": "QN",
+      "name": "Quảng Ninh",
+      "nameEn": "Quang Ninh",
+      "type": "province",
+      "region": "north",
+      "cx": 280,
+      "cy": 155,
+      "merged": [
+        "Quảng Ninh"
+      ]
+    },
+    {
+      "id": "HN",
+      "name": "TP. Hà Nội",
+      "nameEn": "Hanoi",
+      "type": "city",
+      "region": "north",
+      "cx": 235,
+      "cy": 165,
+      "merged": [
+        "Hà Nội"
+      ]
+    },
+    {
+      "id": "HP",
+      "name": "TP. Hải Phòng",
+      "nameEn": "Hai Phong",
+      "type": "city",
+      "region": "north",
+      "cx": 260,
+      "cy": 170,
+      "merged": [
+        "Hải Phòng",
+        "Hải Dương"
+      ]
+    },
+    {
+      "id": "HY",
+      "name": "Hưng Yên",
+      "nameEn": "Hung Yen",
+      "type": "province",
+      "region": "north",
+      "cx": 250,
+      "cy": 175,
+      "merged": [
+        "Hưng Yên",
+        "Thái Bình"
+      ]
+    },
+    {
+      "id": "NB",
+      "name": "Ninh Bình",
+      "nameEn": "Ninh Binh",
+      "type": "province",
+      "region": "north",
+      "cx": 240,
+      "cy": 195,
+      "merged": [
+        "Hà Nam",
+        "Nam Định",
+        "Ninh Bình"
+      ]
+    },
+    {
+      "id": "TH",
+      "name": "Thanh Hóa",
+      "nameEn": "Thanh Hoa",
+      "type": "province",
+      "region": "north_central",
+      "cx": 215,
+      "cy": 220,
+      "merged": [
+        "Thanh Hóa"
+      ]
+    },
+    {
+      "id": "NA",
+      "name": "Nghệ An",
+      "nameEn": "Nghe An",
+      "type": "province",
+      "region": "north_central",
+      "cx": 195,
+      "cy": 270,
+      "merged": [
+        "Nghệ An"
+      ]
+    },
+    {
+      "id": "HT",
+      "name": "Hà Tĩnh",
+      "nameEn": "Ha Tinh",
+      "type": "province",
+      "region": "north_central",
+      "cx": 220,
+      "cy": 310,
+      "merged": [
+        "Hà Tĩnh"
+      ]
+    },
+    {
+      "id": "QT",
+      "name": "Quảng Trị",
+      "nameEn": "Quang Tri",
+      "type": "province",
+      "region": "north_central",
+      "cx": 245,
+      "cy": 345,
+      "merged": [
+        "Quảng Bình",
+        "Quảng Trị"
+      ]
+    },
+    {
+      "id": "HUE",
+      "name": "TP. Huế",
+      "nameEn": "Hue",
+      "type": "city",
+      "region": "north_central",
+      "cx": 265,
+      "cy": 375,
+      "merged": [
+        "Thừa Thiên Huế"
+      ]
+    },
+    {
+      "id": "DN",
+      "name": "TP. Đà Nẵng",
+      "nameEn": "Da Nang",
+      "type": "city",
+      "region": "central",
+      "cx": 280,
+      "cy": 405,
+      "merged": [
+        "Đà Nẵng",
+        "Quảng Nam"
+      ]
+    },
+    {
+      "id": "QNG",
+      "name": "Quảng Ngãi",
+      "nameEn": "Quang Ngai",
+      "type": "province",
+      "region": "central",
+      "cx": 290,
+      "cy": 445,
+      "merged": [
+        "Kon Tum",
+        "Quảng Ngãi"
+      ]
+    },
+    {
+      "id": "GL",
+      "name": "Gia Lai",
+      "nameEn": "Gia Lai",
+      "type": "province",
+      "region": "highland",
+      "cx": 280,
+      "cy": 485,
+      "merged": [
+        "Gia Lai",
+        "Bình Định"
+      ]
+    },
+    {
+      "id": "DL",
+      "name": "Đắk Lắk",
+      "nameEn": "Dak Lak",
+      "type": "province",
+      "region": "highland",
+      "cx": 270,
+      "cy": 530,
+      "merged": [
+        "Đắk Lắk",
+        "Phú Yên"
+      ]
+    },
+    {
+      "id": "KH",
+      "name": "Khánh Hòa",
+      "nameEn": "Khanh Hoa",
+      "type": "province",
+      "region": "south_central",
+      "cx": 310,
+      "cy": 570,
+      "merged": [
+        "Khánh Hòa",
+        "Ninh Thuận"
+      ]
+    },
+    {
+      "id": "LD",
+      "name": "Lâm Đồng",
+      "nameEn": "Lam Dong",
+      "type": "province",
+      "region": "highland",
+      "cx": 260,
+      "cy": 590,
+      "merged": [
+        "Đắk Nông",
+        "Lâm Đồng",
+        "Bình Thuận"
+      ]
+    },
+    {
+      "id": "DNI",
+      "name": "Đồng Nai",
+      "nameEn": "Dong Nai",
+      "type": "province",
+      "region": "south",
+      "cx": 250,
+      "cy": 640,
+      "merged": [
+        "Bình Phước",
+        "Đồng Nai",
+        "Bà Rịa-Vũng Tàu"
+      ]
+    },
+    {
+      "id": "TNI",
+      "name": "Tây Ninh",
+      "nameEn": "Tay Ninh",
+      "type": "province",
+      "region": "south",
+      "cx": 210,
+      "cy": 620,
+      "merged": [
+        "Tây Ninh",
+        "Long An"
+      ]
+    },
+    {
+      "id": "HCM",
+      "name": "TP. Hồ Chí Minh",
+      "nameEn": "Ho Chi Minh City",
+      "type": "city",
+      "region": "south",
+      "cx": 235,
+      "cy": 660,
+      "merged": [
+        "TP. Hồ Chí Minh",
+        "Bình Dương"
+      ]
+    },
+    {
+      "id": "DT",
+      "name": "Đồng Tháp",
+      "nameEn": "Dong Thap",
+      "type": "province",
+      "region": "mekong",
+      "cx": 180,
+      "cy": 680,
+      "merged": [
+        "Đồng Tháp",
+        "Tiền Giang"
+      ]
+    },
+    {
+      "id": "AG",
+      "name": "An Giang",
+      "nameEn": "An Giang",
+      "type": "province",
+      "region": "mekong",
+      "cx": 150,
+      "cy": 700,
+      "merged": [
+        "Kiên Giang",
+        "An Giang"
+      ]
+    },
+    {
+      "id": "VL",
+      "name": "Vĩnh Long",
+      "nameEn": "Vinh Long",
+      "type": "province",
+      "region": "mekong",
+      "cx": 210,
+      "cy": 710,
+      "merged": [
+        "Vĩnh Long",
+        "Trà Vinh",
+        "Bến Tre"
+      ]
+    },
+    {
+      "id": "CT",
+      "name": "TP. Cần Thơ",
+      "nameEn": "Can Tho",
+      "type": "city",
+      "region": "mekong",
+      "cx": 180,
+      "cy": 730,
+      "merged": [
+        "TP. Cần Thơ",
+        "Hậu Giang",
+        "Sóc Trăng"
+      ]
+    },
+    {
+      "id": "CM",
+      "name": "Cà Mau",
+      "nameEn": "Ca Mau",
+      "type": "province",
+      "region": "mekong",
+      "cx": 150,
+      "cy": 780,
+      "merged": [
+        "Bạc Liêu",
+        "Cà Mau"
+      ]
+    }
+  ]
+}

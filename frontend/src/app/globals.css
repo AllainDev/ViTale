@@ -81,6 +81,87 @@
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 .animate-slide-up   { animation: slide-up 200ms ease-out forwards; }
 
+@keyframes gentle-bounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-4px) scale(1.02); }
+}
+.avatar-bubble-bounce { animation: gentle-bounce 3s ease-in-out infinite; }
+
+/* ── AppBackground floating blobs ─────────────────────────────────────── */
+@keyframes blob-drift-a {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  33%     { transform: translate(30px, -20px) scale(1.05); }
+  66%     { transform: translate(-20px, 25px) scale(0.96); }
+}
+@keyframes blob-drift-b {
+  0%,100% { transform: translate(0, 0) scale(1); }
+  40%     { transform: translate(-35px, 15px) scale(1.04); }
+  70%     { transform: translate(20px, -30px) scale(0.97); }
+}
+
+.app-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  will-change: transform;
+}
+.app-blob-1 {
+  width: 480px; height: 480px;
+  left: -10%; top: 5%;
+  background: radial-gradient(circle, #C0392B 0%, transparent 70%);
+  opacity: 0.18;
+  animation: blob-drift-a 26s ease-in-out infinite;
+}
+.app-blob-2 {
+  width: 560px; height: 560px;
+  right: -12%; top: 30%;
+  background: radial-gradient(circle, #2E7D52 0%, transparent 70%);
+  opacity: 0.14;
+  animation: blob-drift-b 30s ease-in-out infinite;
+}
+.app-blob-3 {
+  width: 420px; height: 420px;
+  left: 35%; top: -8%;
+  background: radial-gradient(circle, #C9A44E 0%, transparent 70%);
+  opacity: 0.20;
+  animation: blob-drift-a 22s ease-in-out infinite reverse;
+}
+.app-blob-4 {
+  width: 380px; height: 380px;
+  left: 10%; bottom: 10%;
+  background: radial-gradient(circle, #E8789C 0%, transparent 70%);
+  opacity: 0.14;
+  animation: blob-drift-b 28s ease-in-out infinite;
+}
+.app-blob-5 {
+  width: 340px; height: 340px;
+  right: 5%; bottom: 5%;
+  background: radial-gradient(circle, #9B6B4A 0%, transparent 70%);
+  opacity: 0.12;
+  animation: blob-drift-a 24s ease-in-out infinite 8s;
+}
+
+/* ── Vietnam Map checkpoint pulse ────────────────────────────────────── */
+@keyframes map-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50%      { opacity: 1; transform: scale(1.08); }
+}
+@keyframes map-ping {
+  0%   { transform: scale(1); opacity: 0.8; }
+  80%  { transform: scale(2.2); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+.map-province-active { animation: map-pulse 3s ease-in-out infinite; }
+.map-ping-ring       { animation: map-ping 2s ease-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .app-blob { animation: none !important; }
+  .map-province-active { animation: none !important; }
+  .map-ping-ring       { animation: none !important; }
+}
+
+
+
 /* Tailwind 4 utility shim — radial gradient */
 .bg-gradient-radial {
   background-image: radial-gradient(ellipse at center, var(--tw-gradient-stops));
@@ -120,6 +201,44 @@
   }
 }
 
+/* Passport map container responsive styles */
+.passport-map-container {
+  position: relative;
+  background: rgba(251, 248, 243, 0.6);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+  width: 100vw;
+  max-width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  aspect-ratio: 4 / 5;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.passport-map-container > div {
+  width: 100%;
+  height: 100%;
+}
+
+@media (min-width: 640px) {
+  .passport-map-container {
+    width: 100%;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    aspect-ratio: 3 / 4;
+    border-radius: 16px;
+    border: 1px solid rgba(200, 191, 168, 0.4);
+    box-shadow: 0 12px 48px rgba(15, 10, 5, 0.10);
+    padding: 8px;
+  }
+}
+
 
 /* Texture background for Canvas content area */
 .texture-bg {
@@ -142,6 +261,9 @@
 ::-webkit-scrollbar-track { background: #f5f3ef; }
 ::-webkit-scrollbar-thumb { background: #d6d3d1; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #a8a29e; }
+
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* ══════════════════════════════════════════════════════════════════
    DARK THEME — used by /explore /chat /passport (old pages)

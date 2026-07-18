@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body style={{ margin: 0, padding: 0, background: 'var(--body-bg, #f5f3ef)', color: 'var(--body-text, #1c1917)' }}>
+      <body style={{ margin: 0, padding: 0, background: 'transparent', color: 'var(--body-text, #1c1917)' }}>
         <LanguageProvider>
           <AuthProvider>
             <ThemeProvider>

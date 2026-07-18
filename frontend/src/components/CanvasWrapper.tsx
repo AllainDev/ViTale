@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import Canvas from './Canvas';
+import { AppBackground } from './AppBackground';
 import { ActiveScreen, HeritageNode, HeritageEdge, BrandTheme } from '../types';
 import { INITIAL_NODES, INITIAL_EDGES } from '../data';
 import { useAuth } from '../context/AuthContext';
@@ -85,18 +86,21 @@ export default function CanvasWrapper() {
   };
 
   return (
-    <div style={{ width: '100%' }}>
-      <Canvas 
-        activeScreen={activeScreen}
-        setActiveScreen={setActiveScreen}
-        nodes={nodes}
-        edges={edges}
-        setNodes={setNodes}
-        setEdges={setEdges}
-        prices={DEFAULT_PRICES}
-        brandTheme={DEFAULT_THEME}
-        onSimulateQrScan={handleSimulateQrScan}
-      />
+    <div style={{ width: '100%', minHeight: '100vh', position: 'relative' }}>
+      <AppBackground />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <Canvas 
+          activeScreen={activeScreen}
+          setActiveScreen={setActiveScreen}
+          nodes={nodes}
+          edges={edges}
+          setNodes={setNodes}
+          setEdges={setEdges}
+          prices={DEFAULT_PRICES}
+          brandTheme={DEFAULT_THEME}
+          onSimulateQrScan={handleSimulateQrScan}
+        />
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ActiveScreen, ViewMode, HeritageNode, HeritageEdge } from "../types";
 import { ALL_PRODUCTS } from "../data";
 import { useLanguage } from "../context/LanguageContext";
+import { useChat } from "@/context/ChatContext";
 import { getTranslation } from "../lib/i18n";
 import { useRouter } from 'next/navigation';
 import { gamificationApi } from "../lib/api";
@@ -35,8 +36,7 @@ import QRScanner from "./QRScanner";
 import { useAuth } from "../context/AuthContext";
 import GoogleLoginButton from "./auth/GoogleLoginButton";
 import FacebookLoginButton from "./auth/FacebookLoginButton";
-import { AvatarStage } from "./Chat/AvatarStage";
-import { GlassChatPanel } from "./Chat/GlassChatPanel";
+import { CompanionPanel } from "./Chat/CompanionPanel";
 
 const translateAuthError = (err: string, lang: string) => {
   if (lang !== 'vi' || !err) return err;
@@ -328,11 +328,8 @@ export default function Canvas({
   const products = apiProducts.length > 0 ? apiProducts : ALL_PRODUCTS;
 
   const { language: currentLanguage, setLanguage: setCurrentLanguage } = useLanguage();
+  const { setLanguage: setChatLanguage } = useChat();
   
-  // 3D Assistant State
-  const [animTag, setAnimTag] = useState<'idle' | 'talking'>('idle');
-  const [avatarLoaded, setAvatarLoaded] = useState(false);
-
   // Local state for chat message list
   const [chatBlocked, setChatBlocked] = useState(false);
 
@@ -406,7 +403,6 @@ export default function Canvas({
   return (
     <div 
       className="w-full min-h-screen flex flex-col relative"
-      style={{ backgroundColor: brandTheme.backgroundColor }}
     >
       
       {/* Dynamic Toast Feedback Notification */}
@@ -418,7 +414,7 @@ export default function Canvas({
       )}
 
       {/* VITALE HEADER NAVBAR */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-stone-200/60 py-3 px-3 md:py-3.5 md:px-6 sticky top-0 z-30 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-3 transition-all">
+      <header className="bg-white/90 backdrop-blur-md border-b border-stone-200/60 py-3 px-6 sm:px-7 md:py-3.5 md:px-6 sticky top-0 z-30 flex flex-col md:flex-row justify-between items-center gap-2 md:gap-3 transition-all">
         <div className="flex justify-between items-center w-full md:flex-1 md:justify-start">
           <button 
             onClick={() => setActiveScreen("home")}
@@ -431,7 +427,11 @@ export default function Canvas({
           {/* Mobile Lang & Auth togglers next to logo */}
           <div className="flex md:hidden items-center gap-2">
             <button
-              onClick={() => setCurrentLanguage(currentLanguage === "vi" ? "en" : "vi")}
+              onClick={() => {
+                const next = currentLanguage === "vi" ? "en" : "vi";
+                setCurrentLanguage(next);
+                setChatLanguage(next);
+              }}
               className="relative flex items-center bg-stone-100 rounded-full p-0.5 w-[56px] h-[24px] cursor-pointer hover:bg-stone-200 transition-colors border border-stone-200"
             >
               <div className={`absolute w-[26px] h-[20px] bg-white rounded-full shadow-sm transition-transform duration-300 ${currentLanguage === 'en' ? 'translate-x-[24px]' : 'translate-x-0'}`}></div>
@@ -499,7 +499,7 @@ export default function Canvas({
                   setAuthSuccess("");
                   setActiveScreen("auth");
                 }}
-                className="shrink-0 text-[10px] tracking-wider uppercase font-bold text-white h-[28px] w-28 rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
+                className="shrink-0 text-[8.5px] tracking-wider uppercase font-bold text-white h-[24px] w-[76px] rounded-full flex items-center justify-center transition-transform hover:scale-105 active:scale-95"
                 style={{ backgroundColor: brandTheme.primaryColor }}
               >
                 {t.login}
@@ -509,7 +509,7 @@ export default function Canvas({
         </div>
 
         {/* Navigation list: Responsive scaling */}
-        <nav className="flex items-center gap-1 sm:gap-2 lg:gap-4 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 justify-start md:justify-center px-1.5 md:px-0 scrollbar-hide">
+        <nav className="flex items-center justify-between md:justify-center gap-0 md:gap-2 lg:gap-4 w-full md:w-auto pb-1 md:pb-0 px-0 scrollbar-hide">
           {[
             { id: "home", label: t.navHome },
             { id: "collections", label: t.navCollections },
@@ -520,13 +520,13 @@ export default function Canvas({
             <button
               key={item.id}
               onClick={() => setActiveScreen(item.id as ActiveScreen)}
-              className="text-[10px] md:text-xs tracking-normal md:tracking-wider uppercase font-bold py-1.5 px-2 md:px-3 transition-all relative shrink-0 flex items-center gap-1 whitespace-nowrap"
+              className="text-[9px] sm:text-[10px] md:text-xs tracking-tight md:tracking-wider uppercase font-bold py-1.5 px-1 md:px-3 transition-all relative shrink-0 flex items-center gap-0.5 md:gap-1 whitespace-nowrap"
               style={{
                 color: activeScreen === item.id ? brandTheme.secondaryColor : "#424843"
               }}
             >
               <span>{item.label}</span>
-              {(item.id === 'assistant') && !user?.isRegistered && (
+              {(item.id === 'assistant' || item.id === 'passport') && !user?.isRegistered && (
                 <Lock size={9} className="text-stone-400" />
               )}
               {activeScreen === item.id && (
@@ -541,7 +541,11 @@ export default function Canvas({
 
         <div className="hidden md:flex items-center gap-2 lg:gap-4 md:flex-1 md:justify-end shrink-0">
           <button
-            onClick={() => setCurrentLanguage(currentLanguage === "vi" ? "en" : "vi")}
+            onClick={() => {
+              const next = currentLanguage === "vi" ? "en" : "vi";
+              setCurrentLanguage(next);
+              setChatLanguage(next); // keep ChatContext in sync
+            }}
             className="shrink-0 relative flex items-center bg-stone-100 rounded-full p-1 w-[68px] h-[28px] cursor-pointer hover:bg-stone-200 transition-colors border border-stone-200"
           >
             <div className={`absolute w-[30px] h-[22px] bg-white rounded-full shadow-sm transition-transform duration-300 ${currentLanguage === 'en' ? 'translate-x-[28px]' : 'translate-x-0'}`}></div>
@@ -641,9 +645,7 @@ export default function Canvas({
           {/* ========================================================= */}
           {/* SCREEN 1: HOME PAGE (Màn hình 6)                          */}
           {/* ========================================================= */}
-          {activeScreen === "home" && (
-            <div className="animate-fadeIn">
-              
+          <div style={{ display: activeScreen === 'home' ? 'block' : 'none' }} className="animate-fadeIn">
               {/* Hero Banner Section */}
               <section className="px-6 md:px-12 py-10 md:py-16 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
                 <div className="space-y-6">
@@ -803,33 +805,23 @@ export default function Canvas({
                         className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                       />
                     </div>
-                    <div className="p-5 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex justify-between items-start gap-1 mb-1">
-                          <h3 className="font-serif font-black text-stone-800 text-sm line-clamp-1">Custom Keepsake Box</h3>
-                          <span className="text-xs font-bold font-mono text-stone-500 whitespace-nowrap">Contact</span>
-                        </div>
-                        <p className="text-xs text-stone-500 line-clamp-2">Curated heritage selections designed for meaningful personal gifting and memories.</p>
+                    <div className="p-5">
+                      <div className="flex justify-between items-start gap-1 mb-1">
+                        <h3 className="font-serif font-black text-stone-800 text-sm line-clamp-1">Custom Keepsake Box</h3>
+                        <span className="text-xs font-bold font-mono text-stone-500 whitespace-nowrap">Contact</span>
                       </div>
-                      <button
-                        onClick={() => setActiveScreen("contact")}
-                        className="w-full mt-4 bg-stone-100 hover:bg-stone-200 text-stone-800 text-xs py-2 rounded-lg font-bold transition-all flex items-center justify-center gap-1.5"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        Request a quote
-                      </button>
+                      <p className="text-xs text-stone-500 line-clamp-2">Curated heritage selections designed for meaningful personal gifting and memories.</p>
                     </div>
                   </div>
                 </div>
               </section>
 
-            </div>
-          )}
+          </div>
 
           {/* ========================================================= */}
           {/* SCREEN 2: COLLECTIONS PAGE (Màn hình 2)                    */}
           {/* ========================================================= */}
-          {activeScreen === "collections" && (
+          <div style={{ display: activeScreen === 'collections' ? 'block' : 'none' }}>
             <div className="p-6 md:p-10 space-y-10 animate-fadeIn">
               
               {/* Header block */}
@@ -873,23 +865,14 @@ export default function Canvas({
                             </div>
                           )}
                         </div>
-                        <div className="p-5 flex-1 flex flex-col justify-between gap-3">
-                          <div>
-                            <div className="flex justify-between items-start gap-2 mb-1.5">
-                              <h3 className="font-serif font-bold text-stone-800 text-sm md:text-base leading-tight">
-                                {currentLanguage === "vi" ? (prod.vietnameseTitle || prod.name) : (prod.title || prod.name)}
-                              </h3>
-                              <span className="text-xs md:text-sm font-bold font-mono text-stone-600 shrink-0">{priceVal}</span>
-                            </div>
-                            <p className="text-xs text-stone-500 leading-relaxed">{prod.desc || prod.description}</p>
+                        <div className="p-5">
+                          <div className="flex justify-between items-start gap-2 mb-1.5">
+                            <h3 className="font-serif font-bold text-stone-800 text-sm md:text-base leading-tight">
+                              {currentLanguage === "vi" ? (prod.vietnameseTitle || prod.name) : (prod.title || prod.name)}
+                            </h3>
+                            <span className="text-xs md:text-sm font-bold font-mono text-stone-600 shrink-0">{priceVal}</span>
                           </div>
-                          <button 
-                            onClick={() => triggerToast(`✨ ${prod.title || prod.name} — Sản phẩm đang được chuẩn bị đặt hàng!`)}
-                            className="w-full py-2.5 rounded-xl text-xs font-bold text-white transition-all hover:opacity-90 active:scale-98"
-                            style={{ backgroundColor: brandTheme.secondaryColor }}
-                          >
-                            Xem chi tiết
-                          </button>
+                          <p className="text-xs text-stone-500 leading-relaxed">{prod.desc || prod.description}</p>
                         </div>
                       </article>
                     );
@@ -897,7 +880,7 @@ export default function Canvas({
               </div>
 
             </div>
-          )}
+          </div>
 
           {/* ========================================================= */}
           {/* SCREEN 3: AI PASSPORT (Màn hình 4) — requires auth         */}
@@ -959,10 +942,7 @@ export default function Canvas({
           {activeScreen === "assistant" && user && !chatBlocked && (
             <div className="relative w-full h-[calc(100vh-80px)] min-h-[640px] overflow-hidden animate-fadeIn">
 
-              <GlassChatPanel />
-
-              {/* Companion avatar — small, bottom-right above input bar */}
-              <AvatarStage animTag={animTag} onAvatarLoaded={() => setAvatarLoaded(true)} />
+              <CompanionPanel />
 
             </div>
           )}
@@ -1321,8 +1301,8 @@ export default function Canvas({
                         type="text" 
                         value={profileFullName}
                         onChange={(e) => setProfileFullName(e.target.value)}
-                        className="w-full px-4 py-3 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition-all"
-                        placeholder="Nguyễn Văn A"
+                        className="w-full px-4 py-3 bg-white border border-stone-300 rounded-xl text-sm font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-amber-500 transition-all shadow-sm"
+                        placeholder="Nhập họ và tên..."
                       />
                     </div>
                     <div>
